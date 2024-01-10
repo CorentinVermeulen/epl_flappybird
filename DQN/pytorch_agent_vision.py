@@ -1,6 +1,6 @@
 from itertools import count
 from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
-from DQN_training import DQN
+from pytorch_DQN import DQN
 import time
 
 
@@ -24,12 +24,14 @@ def show_model_game(env, policy_net, num_episodes=5, fps=60, agent_vision=False,
             state = env.reset()
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             for t in count():
-                probs = policy_net(state).max(1)
                 action = policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, terminated, _ = env.step(action.item())
+                observation, reward, terminated, info = env.step(action.item())
 
-                infos = f"Nothing: {round(probs[0].item(), 2)} \nJump: {round(probs[1].item(), 2)}"
-                env.render(info=infos)
+                q_0 = policy_net(state)[0][0].item()
+                q_sum = q_0 + policy_net(state)[0][1].item()
+                stats = q_0/q_sum # dont need q_1/q_sum because it's 1 - q_0/q_sum
+
+                env.render(stats=stats)
                 time.sleep(sleep_time)
 
                 reward = torch.tensor([reward])
@@ -45,7 +47,7 @@ def show_model_game(env, policy_net, num_episodes=5, fps=60, agent_vision=False,
                 state = next_state
 
                 if done:
-                    print(f"Episode {i_episode}  score: {env._game.score}")
+                    print(f"score: {env._game.score}, total reward: {total_reward.item()}.\nInfo= {info}")
                     break
             time.sleep(1)
         else:
@@ -53,17 +55,15 @@ def show_model_game(env, policy_net, num_episodes=5, fps=60, agent_vision=False,
 
 env = FlappyBirdEnv()
 
-
 n_actions = env.action_space.n
-
 state = env.reset()
 n_observations = len(state)
 
 
-file_dqn = "/Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/dqn_log/01_05_17_04/E718_S31.pt"
-policy_net = DQN(n_observations, n_actions)
-policy_net.load_state_dict(torch.load(file_dqn))
-policy_net.eval()
+file_dqn = "/Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/dqn_log/01_07_12_20/E880_S50.pt"
 
-
-show_model_game(env, policy_net, num_episodes=1, wait=False, agent_vision=True)
+with torch.no_grad():
+    policy_net = DQN(n_observations, n_actions)
+    policy_net.load_state_dict(torch.load(file_dqn))
+    policy_net.eval()
+    show_model_game(env, policy_net, num_episodes=1,fps=40, wait=False, agent_vision=True)

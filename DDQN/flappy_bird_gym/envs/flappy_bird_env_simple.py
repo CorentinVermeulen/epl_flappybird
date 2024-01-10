@@ -83,6 +83,7 @@ class FlappyBirdEnvSimple(gym.Env):
 
         self._game = None
         self._renderer = None
+        self.agent_vision = False
 
         self._bird_color = bird_color
         self._pipe_color = pipe_color

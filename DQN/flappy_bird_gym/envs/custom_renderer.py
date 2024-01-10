@@ -46,6 +46,7 @@ FILL_BACKGROUND_COLOR = (0, 0, 0)
 pygame.font.init()  # init font
 HS_FONT = pygame.font.SysFont("comicsans", 18)
 
+
 class CustomBirdRenderer:
     """ Handles the rendering of the game.
 
@@ -116,26 +117,39 @@ class CustomBirdRenderer:
                               (x_offset, self._screen_height * 0.1))
             x_offset += self.images['numbers'][digit].get_width()
 
-    def _draw_info(self, info:str) -> None:
-        info_l = info.split("\n")
-        for i, line in enumerate(info_l):
-            info_label = HS_FONT.render(line, 1, (255, 255, 255))
-            self.surface.blit(info_label, (5, self._screen_height * 0.91 - 20 * (len(info_l) - i)))
+    def _draw_stats(self, stats):
+        center_x = self._screen_width * 0.5
+        center_y = self._screen_height * 0.95
 
-    def draw_surface(self, show_score: bool = True, info:str = "", obs:dict = None) -> None:
+        width = abs((stats - 0.5) * self._screen_width * 3)
+        if  stats > 0.5:
+            pygame.draw.rect(self.surface, (255, 0, 255),(center_x-width, center_y , width, 10))
+        if  stats < 0.5:
+            width = (0.5 - stats) * self._screen_width * 10
+            pygame.draw.rect(self.surface, (255, 0, 255),(center_x,center_y , width, 10))
+
+        pygame.draw.rect(self.surface, (0,0,0), (center_x - 0.5, center_y - 2, 1, 14))
+
+        s = '0: ' + str(round(stats * 100, 2)) + ' %'
+        stat_label = HS_FONT.render(s, 1, (255, 255, 255))
+        self.surface.blit(stat_label, (5,center_y - 25))
+
+        s = '1: ' + str(round((1 - stats) * 100, 2)) + ' %'
+        stat_label = HS_FONT.render(s, 1, (255, 255, 255))
+        self.surface.blit(stat_label, (self._screen_width -len(s)*10 , center_y - 25))
+
+
+    def draw_surface(self, show_score: bool = True, add_original=True, add_custom=True, stats=None, obs=None) -> None:
         if self.game is None:
             raise ValueError("A game logic must be assigned to the renderer!")
-
         # BLACK Background
         self.surface.fill(FILL_BACKGROUND_COLOR)
 
         # Original game
-        if True:
-            # Background
+        # Background
+        if add_original:
             if self.images['background'] is not None:
                 self.surface.blit(self.images['background'], (0, 0))
-            else:
-                self.surface.fill(FILL_BACKGROUND_COLOR)
 
             # Pipes
             for up_pipe, low_pipe in zip(self.game.upper_pipes,
@@ -162,39 +176,69 @@ class CustomBirdRenderer:
             self.surface.blit(player_surface, (self.game.player_x,
                                                self.game.player_y))
 
-        ## ALLOWED VALUE:
-        #  - player-y
-        player_y = obs['player_y'] + PLAYER_HEIGHT//2
-        player_x = self.game.player_x + PLAYER_HEIGHT//2
 
-        # Base (ground)
-        self.surface.blit(self.images['base'], (self.game.base_x,self.game.base_y))
-
-        # Pipes
-        pipes_x = self.game.player_x + obs['h_dist']
-        pygame.draw.rect(self.surface, (0, 0, 255), (pipes_x - PIPE_WIDTH , obs['lower_pipe_y'], PIPE_WIDTH, 10))
-        pygame.draw.rect(self.surface, (0, 0, 255), (pipes_x - PIPE_WIDTH, obs['upper_pipe_y'], PIPE_WIDTH, 10))
-
-        # v_dist
-        point1 = (self.game.player_x, player_y)
-        point2 = (self.game.player_x, player_y + obs['v_dist'])
-        pygame.draw.line(self.surface, (0, 255, 0), point1, point2,2)
-
-        # pipe_center
-        point1 = (self.game.player_x, player_y)
-        point2 = (pipes_x, obs['pipe_center'])
-        pygame.draw.line(self.surface, (0, 255, 255), point1, point2, 2)
-
-        # player
-        pygame.draw.circle(self.surface, (255, 0, 0), (int(player_x), int(player_y)), PLAYER_HEIGHT//2)
+        if add_custom:
+            self._draw_custom_surfaces(stats= stats, obs = obs)
 
         # Score
         # (must be drawn before the player, so the player overlaps it)
         if show_score:
             self._draw_score()
 
-        if info != "":
-            self._draw_info(info)
+
+    def _draw_custom_surfaces(self, stats = None, obs=None):
+
+
+        if obs is None:
+            obs = {}
+
+        if obs.get('h_dist', False):
+            pipes_x = self.game.player_x + obs['h_dist']
+
+        if obs.get('lower_pipe_y', False) and obs.get('upper_pipe_y', False):
+            pygame.draw.rect(self.surface, (0, 0, 255), (pipes_x - PIPE_WIDTH, obs['lower_pipe_y'], PIPE_WIDTH, 10))
+            pygame.draw.rect(self.surface, (0, 0, 255),
+                             (pipes_x - PIPE_WIDTH, obs['upper_pipe_y'] - 10, PIPE_WIDTH, 10))
+
+        if obs.get('player_vel_y', False):
+            height = abs(obs['player_vel_y'] * 10)
+            if obs['player_vel_y'] > 0:
+                pygame.draw.rect(self.surface, (255, 0, 0), (self._screen_width * 0.1, self._screen_height * 0.5, 10, height))
+            else:
+                pygame.draw.rect(self.surface, (255, 255, 0), (self._screen_width * 0.1, self._screen_height * 0.5 - height, 10, height))
+
+        if obs.get('player_y', False):
+            player_y = obs['player_y'] + PLAYER_HEIGHT // 2
+            player_x = self.game.player_x + PLAYER_HEIGHT // 2
+            # v_dist
+            if obs.get('v_dist', False):
+                point1 = (self.game.player_x, player_y)
+                point2 = (self.game.player_x, player_y + obs['v_dist'])
+                pygame.draw.line(self.surface, (0, 255, 0), point1, point2, 2)
+
+            # h_dist
+            if obs.get('h_dist', False):
+                point1 = (player_x, player_y)
+                point2 = (player_x + obs['h_dist'], player_y)
+                pygame.draw.line(self.surface, (0, 255, 0), point1, point2, 2)
+
+            # pipe_center
+            if obs.get('pipe_center_y', False) and obs.get('h_dist', False):
+                point1 = (player_x, player_y)
+                point2 = (pipes_x, obs['pipe_center_y'])
+                pygame.draw.line(self.surface, (0, 255, 255), point1, point2, 2)
+
+            if obs.get('pipe_center_x', False) and obs.get('pipe_center_y', False):
+                point1 = (player_x, player_y)
+                point2 = (obs['pipe_center_x'], obs['pipe_center_y'])
+                pygame.draw.line(self.surface, (0, 255, 255), point1, point2, 2)
+                pygame.draw.circle(self.surface, (0, 0, 255), point2, PLAYER_HEIGHT // 2)
+
+            # player
+            pygame.draw.circle(self.surface, (255, 0, 0), (int(player_x), int(player_y)), PLAYER_HEIGHT // 2)
+
+        if stats:
+            self._draw_stats(stats)
 
 
     def update_display(self) -> None:

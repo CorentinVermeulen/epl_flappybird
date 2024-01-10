@@ -9,8 +9,20 @@ from flappy_bird_gym.envs.game_logic import FlappyBirdLogic
 from flappy_bird_gym.envs.game_logic import PIPE_WIDTH, PIPE_HEIGHT
 from flappy_bird_gym.envs.game_logic import PLAYER_WIDTH, PLAYER_HEIGHT
 from flappy_bird_gym.envs.renderer import FlappyBirdRenderer
-from flappy_bird_gym.envs.agent_renderer import CustomBirdRenderer
+from flappy_bird_gym.envs.custom_renderer import CustomBirdRenderer
 from flappy_bird_gym.envs.flappy_bird_env_simple import FlappyBirdEnvSimple
+
+
+
+OBS_VAR = ['player_y','upper_pipe_y','lower_pipe_y','pipe_center_y','v_dist','h_dist','player_vel_y']
+
+#OBS_VAR = ['player_x','player_y','pipe_center_x','pipe_center_y']
+"""     
+    self._game.PLAYER_FLAP_ACC,
+    self._game.PIPE_VEL_X,
+    self._game.PLAYER_ACC_Y,
+    self._game._pipe_gap_size
+"""
 
 class CustomEnvSimple(FlappyBirdEnvSimple):
     def __init__(self,
@@ -19,7 +31,8 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
                  pipe_gap: int = 100,
                  bird_color: str = "yellow",
                  pipe_color: str = "green",
-                 background: Optional[str] = "day") -> None:
+                 background: Optional[str] = "day",
+                 obs_var=None) -> None:
         super().__init__(screen_size=screen_size,
                          normalize_obs=normalize_obs,
                          pipe_gap=pipe_gap,
@@ -27,12 +40,16 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
                          pipe_color=pipe_color,
                          background=background)
 
-        self.observation_space = gym.spaces.Box(-np.inf, np.inf,
-                                                shape=(7,),
-                                                dtype=np.float32)
+        if obs_var is None:
+            obs_var = OBS_VAR
+
         self._score = 0
         self.dict_obs = {}
         self.agent_vision = False
+        self.obs_var = obs_var
+
+        self.reset() # update self.observation_space with the new shape
+
 
     def _get_observation(self):
         """
@@ -70,31 +87,24 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
             v_dist /= self._screen_size[1]
 
         self.dict_obs = {
+            'player_x': self._game.player_x,
             'player_y': player_y,
             'upper_pipe_y': upper_pipe_y,
             'lower_pipe_y': lower_pipe_y,
-            'pipe_center': pipe_center,
+            'pipe_center_y': pipe_center,
+            'pipe_center_x': low_pipe["x"],
             'v_dist': v_dist,
             'h_dist': h_dist,
             'player_vel_y': self._game.player_vel_y,
         }
 
-        return np.array([
-            player_y,
-            upper_pipe_y,
-            lower_pipe_y,
-            pipe_center,
-            v_dist,
-            h_dist,
-            self._game.player_vel_y,
-        ])
+        res = []
+        for name in self.obs_var:
+            res.append(self.dict_obs[name])
 
-    """     
-            self._game.PLAYER_FLAP_ACC,
-            self._game.PIPE_VEL_X,
-            self._game.PLAYER_ACC_Y,
-            self._game._pipe_gap_size
-    """
+        return np.array(res)
+
+
 
     def step(self,
              action: Union[FlappyBirdLogic.Actions, int],
@@ -126,6 +136,14 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         if self._game.score == 50:
             info["WIN"] = True
 
+        try:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
+                    info["QUIT"] = True
+        except:
+            pass
+
         return obs, reward, done, info
 
     def _define_reward(self, alive: bool):
@@ -134,7 +152,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         if alive:
             reward += 0.1
         else:
-            return -1
+            return -3
 
         if self._game.score > self._score:
             self._score = self._game.score
@@ -158,7 +176,11 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
     def reset(self):
         """ Resets the environment (starts a new game). """
         self._score = 0
-        return super().reset()
+        obs = super().reset()
+        self.observation_space = gym.spaces.Box(-np.inf, np.inf,
+                                                shape=(len(obs),),
+                                                dtype=np.float32)
+        return obs
 
     def set_custom_render(self):
         self._renderer = CustomBirdRenderer(screen_size=self._screen_size,
@@ -169,7 +191,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         self._renderer.make_display()
         self.agent_vision = True
 
-    def render(self, mode='human', info="") -> None:
+    def render(self, mode='human', stats="") -> None:
         """ Renders the next frame. """
         if self._renderer is None:
             self._renderer = FlappyBirdRenderer(screen_size=self._screen_size,
@@ -180,10 +202,11 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
             self._renderer.make_display()
 
         if self.agent_vision:
-            self._renderer.draw_surface(show_score=True, info=info, obs=self.dict_obs)
+            obs = {cle: valeur for cle, valeur in self.dict_obs.items() if cle in self.obs_var}
+            self._renderer.draw_surface(show_score=True, stats=stats, obs=obs)
 
         else:
-            self._renderer.draw_surface(show_score=True, info=info)
+            self._renderer.draw_surface(show_score=True, stats=stats)
 
         self._renderer.update_display()
 

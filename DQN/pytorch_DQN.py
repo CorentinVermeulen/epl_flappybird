@@ -25,6 +25,7 @@ from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBird
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
+
 class ReplayMemory(object):
 
     def __init__(self, capacity):
@@ -58,108 +59,48 @@ class DQN(nn.Module):
 
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear( 128,  128)
-        self.layer3 = nn.Linear(128, n_actions)
+        self.layer1 = nn.Linear(n_observations, 64)
+        self.layer2 = nn.Linear(64, 128)
+        self.layer3 = nn.Linear(128, 256)
+        self.layer4 = nn.Linear(256, 512)
+        self.layer5 = nn.Linear(512, 512)
+        self.output = nn.Linear(512, n_actions)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[nothing0exp,jump0exp]...]).
     def forward(self, x):
-        x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
-        return self.layer3(x)
+        x = F.relu6(self.layer1(x))
+        x = F.relu6(self.layer2(x))
+        x = F.relu6(self.layer3(x))
+        x = F.relu6(self.layer4(x))
+        x = F.relu6(self.layer5(x))
+        return self.output(x)
 
     def log_weights(self, writer, epoch):
         for name, param in self.named_parameters():
             writer.add_histogram(name, param, epoch)
 
 
-def show_model_game(env, policy_net, num_episodes=5, fps=60, wait=True):
-    sleep_time = 1 / fps
-    if wait:
-        res = input("Do you want to see the model play? (y/n) ")
-    else:
-        res = "y"
-    if res == "y":
-        for i_episode in range(num_episodes):
+def test_model_game(policy_net):
 
-            total_reward = torch.tensor([0])
-            # Initialize the environment and get it's state
-            state = env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-            for t in count():
-                probs = policy_net(state).max(1)
-                action = policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, terminated, _ = env.step(action.item())
+    state = env.reset()
+    state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+    for t in count():
+        action = policy_net(state).max(1)[1].view(1, 1)
+        observation, reward, terminated, _ = env.step(action.item())
+        done = terminated
 
-                infos = f"Nothing: {round(probs[0].item(), 2)} \nJump: {round(probs[1].item(), 2)}"
-                env.render(info=infos)
-                time.sleep(sleep_time)
-
-                reward = torch.tensor([reward])
-                total_reward = total_reward + reward
-                done = terminated
-
-                if terminated:
-                    next_state = None
-                else:
-                    next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-
-                # Move to the next state
-                state = next_state
-
-                if done:
-                    print(f"Episode {i_episode}  score: {env._game.score}")
-                    break
-            time.sleep(1)
+        if terminated:
+            next_state = None
         else:
-            print("---- END SHOWING RESULTS ----\n ")
+            next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
 
+        # Move to the next state
+        state = next_state
 
-def test_model_game(policy_net, num_episodes=10):
-    scores_log = []
-    if num_episodes > 1:
-        for i_episode in range(num_episodes):
-            # Initialize the environment and get it's state
-            state = env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-            for t in count():
-                action = policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, terminated, _ = env.step(action.item())
+        if done:
+            return env._game.score
 
-                done = terminated
-
-                if terminated:
-                    next_state = None
-                else:
-                    next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-
-                # Move to the next state
-                state = next_state
-
-                if done:
-                    scores_log.append(env._game.score)
-                    break
-        return np.mean(scores_log)
-    else:
-        state = env.reset()
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-        for t in count():
-            action = policy_net(state).max(1)[1].view(1, 1)
-            observation, reward, terminated, _ = env.step(action.item())
-
-            done = terminated
-
-            if terminated:
-                next_state = None
-            else:
-                next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-
-            # Move to the next state
-            state = next_state
-
-            if done:
-                return env._game.score
 
 
 if __name__ == "__main__":
@@ -181,6 +122,7 @@ if __name__ == "__main__":
         # Random action
         else:
             return torch.tensor([[env.action_space.sample()]], dtype=torch.long)
+
 
     def optimize_model():
         if len(memory) < BATCH_SIZE:
@@ -228,30 +170,21 @@ if __name__ == "__main__":
         torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
         optimizer.step()
 
+
+
     ###########################
     ''' SOURCE:
     Environment https://github.com/Talendar/flappy-bird-gym/tree/main 
     Reinforcement Learning: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html '''
     ###########################
-    env = FlappyBirdEnv()
 
-    print(f"\n===================\nEnvironment({env})\n-------------------")
-    print("Action space: ", env.action_space)
-    print("Observation space: ", env.observation_space)
-    print("Reward range: ", env.reward_range)
-    print("Metadata: ", env.metadata)
-    print("Env reset: ", len(env.reset()))
-    print("Env step: ", len(env.step(0)))
-    print("===================\n")
+    torch.device("mps")  # Multi-Processing-Sync
 
-    torch.device("mps") # Multi-Processing-Sync
-
-    #### FAST PARAMETERS:
     MEMORY_SIZE = 100000
-    EPOCHS = 3000
+    EPOCHS = 2000
 
     # Training parameters
-    BATCH_SIZE = 64  # the number of transitions sampled from the replay buffer
+    BATCH_SIZE = 64 * 2 * 2  # the number of transitions sampled from the replay buffer
     GAMMA = 0.99  # the discount factor as mentioned in the previous section
     EPS_START = 0.9  # the starting value of epsilon
     EPS_END = 0.01  # the final value of epsilon
@@ -261,12 +194,38 @@ if __name__ == "__main__":
     LR = 1e-4  # the learning rate of the ``AdamW`` optimizer
     num_episodes = EPOCHS  # the number of episodes for training
 
+    OBS_VAR = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist']
+    env = FlappyBirdEnv(obs_var=OBS_VAR)
+
     n_actions = env.action_space.n  # Get number of actions from gym action space
     n_observations = len(env.reset())  # Get the number of state observations
-
     run_name = time.strftime("%m_%d_%H_%M", time.localtime())
     filename = "./dqn_log/" + run_name
     os.makedirs(filename)
+
+    print(f"\n===================\nEnvironment({env})\n==================="
+          f"Action space: {env.action_space}\n"
+          f"Observation space: {env.observation_space}\n"
+          f"Reward range: {env.reward_range}\n"
+          f"Env obs variables: {env.obs_var}\n"
+          f"Env obs values: {env.reset()}\n"
+          f"=========================================================\n")
+
+    # Log hyper parameters
+    with open(f"{filename}/parameters.txt", "w") as f:
+        f.write(f"MEMORY_SIZE = {MEMORY_SIZE}\n")
+        f.write(f"EPOCHS = {EPOCHS}\n")
+        f.write(f"BATCH_SIZE = {BATCH_SIZE}\n")
+        f.write(f"GAMMA = {GAMMA}\n")
+        f.write(f"EPS_START = {EPS_START}\n")
+        f.write(f"EPS_END = {EPS_END}\n")
+        f.write(f"EPS_DECAY = {EPS_DECAY}\n")
+        f.write(f"TAU = {TAU}\n")
+        f.write(f"LR = {LR}\n")
+        f.write(f"num_episodes = {num_episodes}\n")
+        f.write(f"n_actions = {n_actions}\n")
+        f.write(f"n_observations = {n_observations}\n")
+        f.write(f"obs_var = {env.obs_var}\n")
 
     policy_net = DQN(n_observations, n_actions)
     target_net = DQN(n_observations, n_actions)
@@ -281,12 +240,22 @@ if __name__ == "__main__":
 
     best_reward = 0
     best_score = 0
+    best_duration = 0
+
+    writer = SummaryWriter(f'runs/DQN/{run_name}')
+    def write_stats(writer, epoch, total_reward, train_score, eps_threshold, duration, test_score=None):
+        d = {'train': train_score, 'reward': total_reward, 'eps': eps_threshold, 'duration': duration}
+        if test_score:
+            d['test'] = test_score
+
+        writer.add_scalars('score', d, epoch)
+
+    # Log the model
+    obs = {cle: float(valeur) for cle, valeur in env.dict_obs.items() if cle in env.obs_var}
+    writer.add_graph(policy_net, torch.tensor(list(obs.values())))
 
     print("---- START TRAINING ---- ")
-
     s = time.perf_counter()
-    writer = SummaryWriter(f'runs/DQN/{run_name}')
-
     for i_episode in range(num_episodes):
         total_reward = torch.tensor([0])
         # Initialize the environment and get it's state
@@ -307,16 +276,17 @@ if __name__ == "__main__":
 
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
+            # Log when memory is full
             if not memory_full and memory.isfull():
                 memory_full = i_episode
+
             # Move to the next state
             state = next_state
 
             # Perform one step of the optimization (on the policy network)
             optimize_model()
 
-            # Soft update of the target network's weights
-            # θ′ ← τ θ + (1 −τ )θ′
+            # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
             target_net_state_dict = target_net.state_dict()
             policy_net_state_dict = policy_net.state_dict()
             for key in policy_net_state_dict:
@@ -324,49 +294,40 @@ if __name__ == "__main__":
             target_net.load_state_dict(target_net_state_dict)
 
             if done:
-                print(
-                    f"\r[{i_episode}/{num_episodes}] ({round(time.perf_counter() - s, 2)} sec.) eps_t: {round(eps_threshold, 3)} / {EPS_START} ",
-                    end="")
+                print(f"\r{i_episode}/{num_episodes}: dur {t+1}\t({round(time.perf_counter() - s, 2)} sec.) eps: {round(eps_threshold, 3)}",end="")
+                """ Variables of performance:
+                Duration
+                Reward
+                Score
+                """
+                # Log the performance
                 game_score = env._game.score
+                test_score = test_model_game(policy_net)  # 1 if deterministic
+                duration = t + 1
+                write_stats(writer, i_episode, total_reward, game_score, duration, eps_threshold, test_score)
+                policy_net.log_weights(writer, i_episode)
 
+                # If best duration, save the model
+                if t+1 > best_duration:
+                    best_duration = t+1
+                    print(f"\r\tNEW BP: i{i_episode}: durations: {t + 1}. \t score: {game_score}\t Eps: {eps_threshold}")
 
-                if i_episode % 20 == 0:
-                    ## TRAINING LOG
-                    writer.add_scalar('Training_Reward', total_reward, i_episode)
-                    writer.add_scalar('Training_Score', game_score, i_episode)
-                    writer.add_scalar('Eps', eps_threshold, i_episode)
-                    writer.add_scalar('Time', time.perf_counter() - s, i_episode)
+                    torch.save(policy_net.state_dict(), f"{filename}/E{i_episode}_S{game_score}.pt")
                     policy_net.log_weights(writer, i_episode)
-                    target_net.log_weights(writer, i_episode)
-
-                    ## TESTING LOG
-                    test_score = test_model_game(policy_net, num_episodes=1)  # 1 if deterministic
-                    writer.add_scalar('Test_Score', test_score, i_episode)
-
-                # if i_episode % 100 == 0:
-                #     print(
-                #         f"\r{i_episode}: Train score: {best_score} - Test score: {test_score} - eps_t: {round(eps_threshold, 3)}")
-                #
-                #     torch.save(policy_net.state_dict(), f"{filename}/{i_episode}Epochs_{int(test_score)}Score.pt")
+                    memory.write_to_csv(f"{filename}/E{i_episode}_S{game_score}_memory.csv")
 
                 best_reward = max(total_reward, best_score)
-                if env._game.score > best_score:
-                    best_score = game_score
-                    if best_score > 1:
-                        torch.save(policy_net.state_dict(), f"{filename}/E{i_episode}_S{int(best_score)}.pt")
-                        memory.write_to_csv(f"{filename}/E{i_episode}_S{int(best_score)}_memory.csv")
-
-                        policy_net.log_weights(writer, i_episode)
-                        target_net.log_weights(writer, i_episode)
-
-                        test_score = test_model_game(policy_net, num_episodes=1)  # 1 if deterministic
-                        print(f"\r{i_episode}: Train score: {best_score} - Test score: {test_score} - eps_t: {round(eps_threshold, 3)}")
+                best_score = max(game_score, best_score)
 
                 break
 
+    torch.save(policy_net.state_dict(), f"{filename}/E{num_episodes}.pt")
+    memory.write_to_csv(f"{filename}/E{num_episodes}__memory.csv")
+    policy_net.log_weights(writer, num_episodes)
+    target_net.log_weights(writer, num_episodes)
     writer.close()
 
-    print("---- END TRAINING ----\n ")
+    print("\n---- END TRAINING ----\n ")
 
     ### Save the model
     '''
