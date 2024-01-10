@@ -63,7 +63,6 @@ class DQN(nn.Module):
         self.layer2 = nn.Linear(64, 128)
         self.layer3 = nn.Linear(128, 256)
         self.layer4 = nn.Linear(256, 512)
-        self.layer5 = nn.Linear(512, 512)
         self.output = nn.Linear(512, n_actions)
 
     # Called with either one element to determine next action, or a batch
@@ -73,7 +72,6 @@ class DQN(nn.Module):
         x = F.relu6(self.layer2(x))
         x = F.relu6(self.layer3(x))
         x = F.relu6(self.layer4(x))
-        x = F.relu6(self.layer5(x))
         return self.output(x)
 
     def log_weights(self, writer, epoch):
@@ -109,7 +107,9 @@ if __name__ == "__main__":
         global steps_done
         global eps_threshold  # For plotting
         sample = random.random()
-        eps_threshold = EPS_END + (EPS_START - EPS_END) * math.exp(-1. * steps_done / EPS_DECAY)
+        if eps_threshold > EPS_END:
+            eps_threshold = round(EPS_END + (EPS_START - EPS_END) * math.exp(-1. * steps_done / EPS_DECAY),3)
+
         steps_done += 1
 
         # Best action
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     best_duration = 0
 
     writer = SummaryWriter(f'runs/DQN/{run_name}')
-    def write_stats(writer, epoch, total_reward, train_score, eps_threshold, duration, test_score=None):
+    def write_stats(writer, epoch, total_reward, train_score, duration, eps_threshold, test_score=None):
         d = {'train': train_score, 'reward': total_reward, 'eps': eps_threshold, 'duration': duration}
         if test_score:
             d['test'] = test_score

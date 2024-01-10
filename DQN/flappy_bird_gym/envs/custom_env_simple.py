@@ -152,7 +152,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         if alive:
             reward += 0.1
         else:
-            return -3
+            return -1
 
         if self._game.score > self._score:
             self._score = self._game.score
