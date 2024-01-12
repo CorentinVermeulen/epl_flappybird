@@ -1,4 +1,3 @@
-
 from typing import Dict, Tuple, Optional, Union
 
 import gym
@@ -12,17 +11,16 @@ from flappy_bird_gym.envs.renderer import FlappyBirdRenderer
 from flappy_bird_gym.envs.custom_renderer import CustomBirdRenderer
 from flappy_bird_gym.envs.flappy_bird_env_simple import FlappyBirdEnvSimple
 
+OBS_VAR = ['player_y', 'upper_pipe_y', 'lower_pipe_y', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
 
-
-OBS_VAR = ['player_y','upper_pipe_y','lower_pipe_y','pipe_center_y','v_dist','h_dist','player_vel_y']
-
-#OBS_VAR = ['player_x','player_y','pipe_center_x','pipe_center_y']
+# OBS_VAR = ['player_x','player_y','pipe_center_x','pipe_center_y']
 """     
     self._game.PLAYER_FLAP_ACC,
     self._game.PIPE_VEL_X,
     self._game.PLAYER_ACC_Y,
     self._game._pipe_gap_size
 """
+
 
 class CustomEnvSimple(FlappyBirdEnvSimple):
     def __init__(self,
@@ -48,7 +46,18 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         self.agent_vision = False
         self.obs_var = obs_var
 
-        self.reset() # update self.observation_space with the new shape
+        self.reset()  # update self.observation_space with the new shape
+
+    def __str__(self):
+        str = (f"CustomEnvSimple(\n"
+               f"\tScreen_size={self._screen_size} (normalized obs: {self._normalize_obs}"
+               f"\tAction space: {self.action_space}\n"
+               f"\tObservation space: {self.observation_space}\n"
+               f"\tEnv obs variables: {self.obs_var}\n"
+               f"\tEnv obs values: {self.reset()}\n"
+               f"\tReward range: {self.reward_range}\n"
+               f")")
+        return str
 
 
     def _get_observation(self):
@@ -104,8 +113,6 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
 
         return np.array(res)
 
-
-
     def step(self,
              action: Union[FlappyBirdLogic.Actions, int],
              ) -> Tuple[np.ndarray, float, bool, Dict]:
@@ -148,28 +155,24 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
 
     def _define_reward(self, alive: bool):
         reward = 0
-        # If alive +0.1 else -1:
-        if alive:
-            reward += 0.1
-        else:
-            return -1
 
+        # If alive +0.1 else 0
+        if alive:
+            reward += 0.2
+        else:
+            return 0
+
+        # increase reward when passing pipes
         if self._game.score > self._score:
             self._score = self._game.score
             reward += 1
 
-        """ # If passed a pipe +1:
-        if self._game.score > self._score:
-            self._score = self._game.score
-            if self.v_dist < self._game._pipe_gap_size / 2 :
-                reward += 1
-            reward += 1 
         """
-
-        """ # If close to pipe gap center
-        if self.v_dist < self._game._pipe_gap_size / 2:
-            reward += 0.1
-            """
+        I want to check:
+        +0.2 or +score+0.1  if the bird is alive
+        +0 or -1 if dead
+        +1 or +0 if pass a pipe 
+        """
 
         return reward
 
