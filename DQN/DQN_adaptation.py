@@ -36,6 +36,7 @@ class ReplayMemory(object):
 
     def __str__(self):
         return f"ReplayMemory with capacity {self.capacity} ({len(self.memory)} used elements)"
+
     def push(self, *args):
         self.memory.append(Transition(*args))
 
@@ -53,13 +54,13 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, n_observations, n_actions):
+    def __init__(self, n_observations, n_actions, sizes=[64, 128, 256, 256]):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 64)
-        self.layer2 = nn.Linear(64, 128)
-        self.layer3 = nn.Linear(128, 256)
-        self.layer4 = nn.Linear(256, 256)
-        self.output = nn.Linear(256, n_actions)
+        self.layer1 = nn.Linear(n_observations, sizes[0])
+        self.layer2 = nn.Linear(sizes[0], sizes[1])
+        self.layer3 = nn.Linear(sizes[1], sizes[2])
+        self.layer4 = nn.Linear(sizes[2], sizes[3])
+        self.output = nn.Linear(sizes[3], n_actions)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[nothing0exp,jump0exp]...]).
@@ -83,8 +84,8 @@ class DQNAgent(AbstractAgent):
         self.device = 'mps'
         self.set_hyperparameters(hyperparameters)
 
-        self.policy_net = DQN(self.n_observations, self.n_actions)
-        self.target_net = DQN(self.n_observations, self.n_actions)
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
 
@@ -95,7 +96,6 @@ class DQNAgent(AbstractAgent):
 
         self.writer = None
 
-
     def set_hyperparameters(self, hyperparameters):
         self.EPOCHS = hyperparameters.get('EPOCHS', 2000)
         self.BATCH_SIZE = hyperparameters.get('BATCH_SIZE', 256)
@@ -105,11 +105,12 @@ class DQNAgent(AbstractAgent):
         self.GAMMA = hyperparameters.get('GAMMA', 0.99)  # the discount factor as mentioned in the previous section
         self.EPS_START = hyperparameters.get('EPS_STAR', 0.9)  # the starting value of epsilon
         self.EPS_END = hyperparameters.get('EPS_END', 0.01)  # the final value of epsilon
-        self.EPS_DECAY = hyperparameters.get('EPS_DECAY',2000)  # higher means a slower decay
+        self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
         self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
+        self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
 
     def train(self):
-        id_training = 'runs/DQN/' + time.strftime("%d%m-%H%M%S")
+        id_training = 'runs/DQN/' + time.strftime("%d%m-%H%M%S") + f"_B{self.BATCH_SIZE}"
         self.writer = SummaryWriter(id_training)
         desc = ""
         for k, v in self.__dict__.items():
@@ -156,25 +157,24 @@ class DQNAgent(AbstractAgent):
                 if done:
                     train_score = self.env._game.score
                     scores.append(train_score)
-                    durations.append(t+1)
-                    dic = {'memory_size': len(self.memory), 'train_score': train_score, 'train_reward': total_reward, 'duration': t+1}
+                    durations.append(t + 1)
+                    dic = {'memory_size': len(self.memory), 'train_score': train_score, 'train_reward': total_reward,
+                           'duration': t + 1}
 
                     best_score = max(train_score, best_score)
-                    if t+1 > best_duration:
-                        best_duration = t+1
+                    if t + 1 > best_duration:
+                        best_duration = t + 1
                         self.policy_net.log_weights(self.writer, i_episode)
 
                         if train_score > 2:
-                            name = id_training + f"/E{i_episode}_D{t+1}_S{train_score}"
-                            torch.save(self.policy_net.state_dict(), name+'.pt')
-                            self.memory.save(name+'_memory')
+                            self._save_agent(id_training)
 
                     self._write_stats(i_episode, **dic)
 
-                    print(f"\r{i_episode+1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
-                          f"\tcD: {t+1} cS: {train_score} "
+                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
+                          f"\tcD: {t + 1} cS: {train_score} "
                           f"\tEPS:{self.eps_threshold}"
-                          ,end='')
+                          , end='')
 
                     break
 
@@ -184,9 +184,100 @@ class DQNAgent(AbstractAgent):
 
         self._log_agent(id_training, **end_dic)
         self.writer.close()
-        self._make_plot(scores, durations, id_training + '/plot.png')
+        self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
+
+        return (scores, durations)
+
     def retrain(self, **kwargs):
-        pass
+        id_training = 'runs/DQN/' + time.strftime("%d%m-%H%M%S") + f"_Retrain"
+        self.writer = SummaryWriter(id_training)
+        desc = ""
+        for k, v in self.__dict__.items():
+            desc += f"{k}: {v}\n"
+
+        # Load already trained agent
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.policy_net.load_state_dict(torch.load(kwargs['policy_net']))
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+
+        # Load memory?
+        self.memory.load(kwargs['policy_net'] + '_memory')
+        # Retrain starting EPS Threshold?
+        self.eps_threshold = kwargs['eps_threshold']
+
+        self.writer.add_text('Hyperparameters', desc)
+        self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
+
+        best_score = 0
+        best_duration = 0
+        scores = []
+        durations = []
+
+        for i_episode in range(self.EPOCHS):
+            # Initialize the environment and state
+            total_reward = 0
+            state = self.env.reset()
+            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+
+            # Start playing and learning
+            for t in count():
+                action = self._select_action(state)
+                observation, reward, terminated, _ = self.env.step(action.item())
+                reward = torch.tensor([reward])
+                total_reward += reward.item()
+
+                done = terminated
+                next_state = None if terminated else torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+
+                # Store transition in memory
+                self.memory.push(state, action, next_state, reward)
+
+                state = next_state
+
+                self._optimize_model()
+
+                # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
+                target_state_dict = self.target_net.state_dict()
+                policy_state_dict = self.policy_net.state_dict()
+
+                for key in policy_state_dict:
+                    target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
+                self.target_net.load_state_dict(target_state_dict)
+
+                if done:
+                    train_score = self.env._game.score
+                    scores.append(train_score)
+                    durations.append(t + 1)
+                    dic = {'memory_size': len(self.memory), 'train_score': train_score, 'train_reward': total_reward,
+                           'duration': t + 1}
+
+                    best_score = max(train_score, best_score)
+                    if t + 1 > best_duration:
+                        best_duration = t + 1
+                        self.policy_net.log_weights(self.writer, i_episode)
+
+                        if train_score > 2:
+                            self._save_agent(id_training)
+
+                    self._write_stats(i_episode, **dic)
+
+                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
+                          f"\tcD: {t + 1} cS: {train_score} "
+                          f"\tEPS:{self.eps_threshold}"
+                          , end='')
+
+                    break
+
+        end_dic = self.__dict__
+        end_dic['best_score'] = best_score
+        end_dic['best_duration'] = best_duration
+
+        self._log_agent(id_training, **end_dic)
+        self.writer.close()
+        self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
+
 
     def test(self):
         with torch.no_grad():
@@ -197,7 +288,7 @@ class DQNAgent(AbstractAgent):
                 state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
                 if done:
                     next_state = None
-                    return {'score': self.env().score, 'duration': t+1}
+                    return {'score': self.env().score, 'duration': t + 1}
                 else:
                     next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
                 state = next_state
@@ -205,7 +296,8 @@ class DQNAgent(AbstractAgent):
     def _select_action(self, state):
         sample = random.random()
         if self.eps_threshold > self.EPS_END:
-            self.eps_threshold = round(self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.step_done / self.EPS_DECAY), 3)
+            self.eps_threshold = round(
+                self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.step_done / self.EPS_DECAY), 3)
 
         self.step_done += 1
         # Best Action
@@ -231,7 +323,8 @@ class DQNAgent(AbstractAgent):
         reward_batch = torch.cat(batch.reward)
 
         # Actual Q(s_t,a)
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch) # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
+        state_action_values = self.policy_net(state_batch).gather(1,
+                                                                  action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.BATCH_SIZE)
@@ -250,38 +343,109 @@ class DQNAgent(AbstractAgent):
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
-
     def _write_stats(self, i_episode, **kwargs):
         for key, value in kwargs.items():
             self.writer.add_scalar(key, value, i_episode)
 
     def _log_agent(self, name, **kwargs):
-        with open(name+"/param_log.txt", 'w') as f:
-            for k,v in kwargs.items():
+        with open(name + "/param_log.txt", 'w') as f:
+            for k, v in kwargs.items():
                 f.write(f"{k}: {v}\n")
 
     def _make_plot(self, scores, durations, name):
         plt.figure(figsize=(10, 5))
         plt.subplot(2, 1, 1)
         plt.plot(scores)
-        plt.title('Scores')
+        plt.title(f"Scores (max: {np.max(scores)})")
 
         plt.subplot(2, 1, 2)
         plt.plot(durations)
-        plt.title('Durations')
+        plt.title(f"Durations (mean: {np.mean(durations)})")
         plt.xlabel('Epoch')
 
         plt.savefig(name)
         plt.close()
 
-OBS_VAR = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-env = FlappyBirdEnv(obs_var=OBS_VAR)
-qdnAgent = DQNAgent(env, {"EPOCHS":2000, "BATCH_SIZE": 64})
-qdnAgent.train()
+    def _save_agent(self, id_training):
+        name = id_training + "/policy_net"
+        torch.save(self.policy_net.state_dict(), name + '.pt')
+        self.memory.save(name + '_memory')
 
 
+hyp_writer = SummaryWriter('runs/DQN/Training_Hparams')
 
+batch_sizes = [64, 256, 512]
+layer_sizes = [[64, 128, 256, 256],
+               [64, 256, 256, 256],
+               [64, 128, 256, 512]
+               ]
+learning_rates = [1e-4, 1e-3]
 
+i_tot = len(batch_sizes) * len(layer_sizes) * len(learning_rates)
 
+i = 0
+for learning_rate in learning_rates:
+    for layer_size in layer_sizes:
+        for batch_size in batch_sizes:
+            env = FlappyBirdEnv()
+            env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
+            env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
 
+            qdnAgent = DQNAgent(env, {"EPOCHS": 2000, "BATCH_SIZE": batch_size, "LR": learning_rate,
+                                      "layer_sizes": layer_size})
 
+            print(f"\n\n{i+1}/{i_tot} - {learning_rate} {layer_size} {batch_size}")
+            scores, durations = qdnAgent.train()
+
+            hyp_writer.add_hparams(
+                {
+                    "learning_rate": learning_rate,
+                    "layer_size": str(layer_size),
+                    "batch_size": batch_size,
+                },
+                {
+                    "best_duration": np.max(durations),
+                    "mean_duration": np.mean(durations),
+                    "best_score": np.max(scores),
+                },
+            )
+            i += 1
+
+# hyp_writer = SummaryWriter('runs/DQN/Hyperparameters')
+#
+# alive_rewards = [0.1] # [0.1, 0.5]
+# pass_pipe_rewards = [0, 0.1, 1]
+# dead_rewards = [0, -1, -5] #[0, -1, -5]
+# score_rewards = [0] #[0, 0.1, 1]
+# i_tot = len(alive_rewards) * len(pass_pipe_rewards) * len(dead_rewards) * len(score_rewards)
+#
+# # best: {"alive": 0.1, "pass_pipe": 1, "dead": -5, 'score': 0}
+# i=0
+# for alive_reward in alive_rewards:
+#     for pass_pipe_reward in pass_pipe_rewards:
+#         for dead_reward in dead_rewards:
+#             for score_reward in score_rewards:
+#
+#                     env = FlappyBirdEnv()
+#                     env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
+#                     env.rewards = {"alive": alive_reward, "pass_pipe": pass_pipe_reward, "dead": dead_reward, 'score': score_reward}
+#
+#                     qdnAgent = DQNAgent(env, {"EPOCHS":2000, "BATCH_SIZE": 64})
+#
+#                     print(f"\n\n{i}/{i_tot} - {alive_reward} {pass_pipe_reward} {dead_reward} {score_reward}")
+#                     scores, durations = qdnAgent.train()
+#
+#                     hyp_writer.add_hparams(
+#                         {
+#                             "alive_reward": alive_reward,
+#                             "pass_pipe_reward": pass_pipe_reward,
+#                             "dead_reward": dead_reward,
+#                             "score_reward": score_reward,
+#                         },
+#                         {
+#                             "best_duration": np.max(durations),
+#                             "mean_duration": np.mean(durations),
+#                             "best_score": np.max(scores),
+#                         },
+#                     )
+#                     i+=1

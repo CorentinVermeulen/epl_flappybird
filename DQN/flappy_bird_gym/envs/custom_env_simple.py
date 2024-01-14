@@ -11,17 +11,6 @@ from flappy_bird_gym.envs.renderer import FlappyBirdRenderer
 from flappy_bird_gym.envs.custom_renderer import CustomBirdRenderer
 from flappy_bird_gym.envs.flappy_bird_env_simple import FlappyBirdEnvSimple
 
-OBS_VAR = ['player_y', 'upper_pipe_y', 'lower_pipe_y', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-
-# OBS_VAR = ['player_x','player_y','pipe_center_x','pipe_center_y']
-"""     
-    self._game.PLAYER_FLAP_ACC,
-    self._game.PIPE_VEL_X,
-    self._game.PLAYER_ACC_Y,
-    self._game._pipe_gap_size
-"""
-
-
 class CustomEnvSimple(FlappyBirdEnvSimple):
     def __init__(self,
                  screen_size: Tuple[int, int] = (288, 512),
@@ -38,14 +27,13 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
                          pipe_color=pipe_color,
                          background=background)
 
-        if obs_var is None:
-            obs_var = OBS_VAR
-
         self._score = 0
-        self.dict_obs = {}
-        self.agent_vision = False
-        self.obs_var = obs_var
 
+        self.dict_obs = {}
+        self.obs_var = obs_var
+        self.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
+
+        self.agent_vision = False
         self.reset()  # update self.observation_space with the new shape
 
     def __str__(self):
@@ -55,10 +43,9 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
                f"\tObservation space: {self.observation_space}\n"
                f"\tEnv obs variables: {self.obs_var}\n"
                f"\tEnv obs values: {self.reset()}\n"
-               f"\tReward range: {self.reward_range}\n"
+               f"\tReward range: {self.rewards}\n"
                f")")
         return str
-
 
     def _get_observation(self):
         """
@@ -108,8 +95,12 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         }
 
         res = []
-        for name in self.obs_var:
-            res.append(self.dict_obs[name])
+        if self.obs_var is None:
+            for name in self.dict_obs:
+                res.append(self.dict_obs[name])
+        else:
+            for name in self.obs_var:
+                res.append(self.dict_obs[name])
 
         return np.array(res)
 
@@ -154,25 +145,19 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         return obs, reward, done, info
 
     def _define_reward(self, alive: bool):
-        reward = 0
-
-        # If alive +0.1 else 0
-        if alive:
-            reward += 0.2
-        else:
-            return 0
-
-        # increase reward when passing pipes
-        if self._game.score > self._score:
-            self._score = self._game.score
-            reward += 1
-
         """
         I want to check:
         +0.2 or +score+0.1  if the bird is alive
         +0 or -1 if dead
-        +1 or +0 if pass a pipe 
+        +1 or +0 if pass a pipe
         """
+        reward = (0 + self.rewards['score'] * int(self._game.score)
+                  + self.rewards['alive'] * int(alive)
+                  + self.rewards['pass_pipe'] * int(self._game.score > self._score)
+                  + self.rewards['dead'] * int(not alive)
+                  )
+
+        self._score = max(self._score, self._game.score)
 
         return reward
 
