@@ -180,7 +180,7 @@ class DQNAgent(AbstractAgent):
                           , end='')
 
                     break
-
+        print(' ')
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
@@ -252,11 +252,19 @@ class DQNAgent(AbstractAgent):
                 target_state_dict = self.target_net.state_dict()
                 policy_state_dict = self.policy_net.state_dict()
 
-                for key in policy_state_dict:
-                    target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
-                self.target_net.load_state_dict(target_state_dict)
+                # Askip il faut mettre à jour le target_network moins souvent que le polocy network afin de
+                # stabiliser l'apprentissage
+
+                # for key in policy_state_dict: target_state_dict[key] = self.TAU *
+                # policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key] self.target_net.load_state_dict(
+                # target_state_dict)
 
                 if done:
+
+                    for key in policy_state_dict:
+                        target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
+                    self.target_net.load_state_dict(target_state_dict)
+
                     train_score = self.env._game.score
                     scores.append(train_score)
                     durations.append(t + 1)
@@ -279,7 +287,7 @@ class DQNAgent(AbstractAgent):
                           , end='')
 
                     break
-
+        print(' ')
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
@@ -428,13 +436,13 @@ class DQNAgent(AbstractAgent):
 env = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
 env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
-hparams = {"EPOCHS": 300, "BATCH_SIZE": 64, "layer_sizes": [64, 128, 256, 256]}
+hparams = {"EPOCHS": 1500, "BATCH_SIZE": 64, "layer_sizes": [64, 128, 256, 256]}
 qdnAgent = DQNAgent(env, hparams)
 
 # Training
 print("\n\tTRAINING ...")
 scores, durations, path = qdnAgent.train()
-print(f"\nMean training duration: {np.mean(durations)}")
+print(f"Mean training duration: {np.mean(durations)}")
 
 # Testing (only possible if score is > 2)
 if max(scores) > 2:
@@ -450,7 +458,7 @@ if max(scores) > 2:
     qdnAgent.retrain(path=path,
                      memory_load=True,
                      eps_start=0.01,
-                     epochs=300)
+                     epochs=1500)
 
     print("Testing agent after changes and after retraining" + str(qdnAgent.test()))
 #Show game
