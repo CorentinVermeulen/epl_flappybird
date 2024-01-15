@@ -73,6 +73,11 @@ DEFINED_PIPES_VPOS = [125,  18,   0, 58,  73, 112,  33,   9,  7,  49,
                        20,  45,  64, 12,  34,   6, 117,  55, 62,   9,
                       125]
 
+DEFINED_PIPES_VPOS_shuffle = [80, 55, 112, 45, 53, 34, 73, 142, 62, 101, 125, 97,
+                              141, 58, 114, 55, 78, 140, 68, 7, 9, 63, 56, 20, 0,
+                              84, 27, 126, 24, 109, 33, 18, 47, 9, 39, 9, 84, 20,
+                              49, 117, 6, 129, 49, 44, 125, 53, 12, 41, 100, 89, 64]
+
 DEFINED_PIPES_VPOS_2 = [70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0,
                       70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0,
                       70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0,
@@ -170,6 +175,9 @@ class FlappyBirdLogic:
     class Actions(IntEnum):
         """ Possible actions for the player to take. """
         IDLE, FLAP = 0, 1
+
+    def switch_defined_pipes(self):
+        self._defined_pipes = DEFINED_PIPES_VPOS_shuffle
 
     def _get_new_pipe(self) -> Dict[str, int]:
         """ Returns a randomly generated pipe. """

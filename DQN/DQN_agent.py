@@ -48,7 +48,9 @@ class ReplayMemory(object):
             pickle.dump(self.memory, fichier)
 
     def load(self, file):
-        with open(file + '.pkl', 'rb') as fichier:
+        """file must be a .pkl file"""
+
+        with open(file, 'rb') as fichier:
             self.memory = pickle.load(fichier)
 
 
@@ -132,7 +134,7 @@ class DQNAgent(AbstractAgent):
             # Start playing and learning
             for t in count():
                 action = self._select_action(state)
-                observation, reward, terminated, _ = self.env.step(action.item())
+                observation, reward, terminated, info = self.env.step(action.item())
                 reward = torch.tensor([reward])
                 total_reward += reward.item()
 
@@ -144,7 +146,8 @@ class DQNAgent(AbstractAgent):
 
                 state = next_state
 
-                self._optimize_model()
+                if self.env._game.score != 50:
+                    self._optimize_model()
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 target_state_dict = self.target_net.state_dict()
@@ -186,26 +189,32 @@ class DQNAgent(AbstractAgent):
         self.writer.close()
         self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
 
-        return (scores, durations)
+        return scores, durations, id_training
 
-    def retrain(self, **kwargs):
-        id_training = 'runs/DQN/' + time.strftime("%d%m-%H%M%S") + f"_Retrain"
+    def retrain(self, path, eps_start, memory_load=True, epochs=2000):
+        id_training = path + f"_Retrain"
         self.writer = SummaryWriter(id_training)
-        desc = ""
+        desc = "Retraining\n"
         for k, v in self.__dict__.items():
             desc += f"{k}: {v}\n"
 
         # Load already trained agent
         self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        self.policy_net.load_state_dict(torch.load(kwargs['policy_net']))
         self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+
+        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
+        print("Policy net loaded successfully")
+
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
 
         # Load memory?
-        self.memory.load(kwargs['policy_net'] + '_memory')
+        self.memory = ReplayMemory(self.MEMORY_SIZE)
+        if memory_load:
+            self.memory.load(path + "/policy_net_memory.pkl")
+            print("Memory loaded successfully (", len(self.memory), " elements )")
         # Retrain starting EPS Threshold?
-        self.eps_threshold = kwargs['eps_threshold']
+        self.eps_threshold = eps_start
 
         self.writer.add_text('Hyperparameters', desc)
         self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
@@ -215,7 +224,7 @@ class DQNAgent(AbstractAgent):
         scores = []
         durations = []
 
-        for i_episode in range(self.EPOCHS):
+        for i_episode in range(epochs):
             # Initialize the environment and state
             total_reward = 0
             state = self.env.reset()
@@ -236,7 +245,8 @@ class DQNAgent(AbstractAgent):
 
                 state = next_state
 
-                self._optimize_model()
+                if self.env._game.score != 50:
+                    self._optimize_model()
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 target_state_dict = self.target_net.state_dict()
@@ -263,7 +273,7 @@ class DQNAgent(AbstractAgent):
 
                     self._write_stats(i_episode, **dic)
 
-                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
+                    print(f"\r{i_episode + 1}/{epochs} - D*: {best_duration} S*: {best_score} "
                           f"\tcD: {t + 1} cS: {train_score} "
                           f"\tEPS:{self.eps_threshold}"
                           , end='')
@@ -278,17 +288,17 @@ class DQNAgent(AbstractAgent):
         self.writer.close()
         self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
 
-
     def test(self):
         with torch.no_grad():
-            state = self.env().reset()
+            state = self.env.reset()
+            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             for t in count():
                 action = self.policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, done, _ = self.env().step(action.item())
+                observation, reward, done, _ = self.env.step(action.item())
                 state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
                 if done:
                     next_state = None
-                    return {'score': self.env().score, 'duration': t + 1}
+                    return {'score': self.env._game.score, 'duration': t + 1}
                 else:
                     next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
                 state = next_state
@@ -323,8 +333,7 @@ class DQNAgent(AbstractAgent):
         reward_batch = torch.cat(batch.reward)
 
         # Actual Q(s_t,a)
-        state_action_values = self.policy_net(state_batch).gather(1,
-                                                                  action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
+        state_action_values = self.policy_net(state_batch).gather(1,action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.BATCH_SIZE)
@@ -371,81 +380,79 @@ class DQNAgent(AbstractAgent):
         torch.save(self.policy_net.state_dict(), name + '.pt')
         self.memory.save(name + '_memory')
 
+    def load_policy_net(self, path):
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.policy_net.load_state_dict(torch.load(path))
 
-hyp_writer = SummaryWriter('runs/DQN/Training_Hparams')
+    def show_game(self, agent_vision=False, fps=60, policy_net=None):
+        if agent_vision:
+            self.env.set_custom_render()
 
-batch_sizes = [64, 256, 512]
-layer_sizes = [[64, 128, 256, 256],
-               [64, 256, 256, 256],
-               [64, 128, 256, 512]
-               ]
-learning_rates = [1e-4, 1e-3]
+        if policy_net is not None:
+            self.policy_net = policy_net
 
-i_tot = len(batch_sizes) * len(layer_sizes) * len(learning_rates)
+        sleep_time = 1 / fps
 
-i = 0
-for learning_rate in learning_rates:
-    for layer_size in layer_sizes:
-        for batch_size in batch_sizes:
-            env = FlappyBirdEnv()
-            env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-            env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
+        total_reward = torch.tensor([0])
+        state = env.reset()
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        for t in count():
+            action = self.policy_net(state).max(1)[1].view(1, 1)
+            observation, reward, terminated, info = env.step(action.item())
 
-            qdnAgent = DQNAgent(env, {"EPOCHS": 2000, "BATCH_SIZE": batch_size, "LR": learning_rate,
-                                      "layer_sizes": layer_size})
+            q_0 = self.policy_net(state)[0][0].item()
+            q_sum = q_0 + self.policy_net(state)[0][1].item()
+            stats = q_0 / q_sum  # dont need q_1/q_sum because it's 1 - q_0/q_sum
 
-            print(f"\n\n{i+1}/{i_tot} - {learning_rate} {layer_size} {batch_size}")
-            scores, durations = qdnAgent.train()
+            env.render(stats=stats)
+            time.sleep(sleep_time)
 
-            hyp_writer.add_hparams(
-                {
-                    "learning_rate": learning_rate,
-                    "layer_size": str(layer_size),
-                    "batch_size": batch_size,
-                },
-                {
-                    "best_duration": np.max(durations),
-                    "mean_duration": np.mean(durations),
-                    "best_score": np.max(scores),
-                },
-            )
-            i += 1
+            reward = torch.tensor([reward])
+            total_reward = total_reward + reward
+            done = terminated
 
-# hyp_writer = SummaryWriter('runs/DQN/Hyperparameters')
-#
-# alive_rewards = [0.1] # [0.1, 0.5]
-# pass_pipe_rewards = [0, 0.1, 1]
-# dead_rewards = [0, -1, -5] #[0, -1, -5]
-# score_rewards = [0] #[0, 0.1, 1]
-# i_tot = len(alive_rewards) * len(pass_pipe_rewards) * len(dead_rewards) * len(score_rewards)
-#
-# # best: {"alive": 0.1, "pass_pipe": 1, "dead": -5, 'score': 0}
-# i=0
-# for alive_reward in alive_rewards:
-#     for pass_pipe_reward in pass_pipe_rewards:
-#         for dead_reward in dead_rewards:
-#             for score_reward in score_rewards:
-#
-#                     env = FlappyBirdEnv()
-#                     env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-#                     env.rewards = {"alive": alive_reward, "pass_pipe": pass_pipe_reward, "dead": dead_reward, 'score': score_reward}
-#
-#                     qdnAgent = DQNAgent(env, {"EPOCHS":2000, "BATCH_SIZE": 64})
-#
-#                     print(f"\n\n{i}/{i_tot} - {alive_reward} {pass_pipe_reward} {dead_reward} {score_reward}")
-#                     scores, durations = qdnAgent.train()
-#
-#                     hyp_writer.add_hparams(
-#                         {
-#                             "alive_reward": alive_reward,
-#                             "pass_pipe_reward": pass_pipe_reward,
-#                             "dead_reward": dead_reward,
-#                             "score_reward": score_reward,
-#                         },
-#                         {
-#                             "best_duration": np.max(durations),
-#                             "mean_duration": np.mean(durations),
-#                             "best_score": np.max(scores),
-#                         },
-#                     )
-#                     i+=1
+            if terminated:
+                next_state = None
+            else:
+                next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+
+            # Move to the next state
+            state = next_state
+
+            if done:
+                print(f"score: {env._game.score}, total reward: {total_reward.item()}.\nInfo= {info}")
+                break
+        time.sleep(1)
+
+
+env = FlappyBirdEnv()
+env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
+env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
+hparams = {"EPOCHS": 300, "BATCH_SIZE": 64, "layer_sizes": [64, 128, 256, 256]}
+qdnAgent = DQNAgent(env, hparams)
+
+# Training
+print("\n\tTRAINING ...")
+scores, durations, path = qdnAgent.train()
+print(f"\nMean training duration: {np.mean(durations)}")
+
+# Testing (only possible if score is > 2)
+if max(scores) > 2:
+    print("\n\tTESTING ...")
+    qdnAgent.load_policy_net(path + "/policy_net.pt")
+    print("Testing agent after training" + qdnAgent.test())
+
+    print("\n\tRE-TRAINING ...")
+    # Switch game parameters
+    qdnAgent.env._game.switch_defined_pipes()
+    print("Testing agent after changes and before retraining" + qdnAgent.test())
+
+    qdnAgent.retrain(path=path,
+                     memory_load=True,
+                     eps_start=0.01,
+                     epochs=300)
+
+    print("Testing agent after changes and after retraining" + qdnAgent.test())
+#Show game
+# qdnAgent.load_policy_net(path + "/policy_net.pt")
+# qdnAgent.show_game(agent_vision=True, fps=60)
