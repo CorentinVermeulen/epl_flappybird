@@ -440,19 +440,19 @@ print(f"\nMean training duration: {np.mean(durations)}")
 if max(scores) > 2:
     print("\n\tTESTING ...")
     qdnAgent.load_policy_net(path + "/policy_net.pt")
-    print("Testing agent after training" + qdnAgent.test())
+    print("Testing agent after training" + str(qdnAgent.test()))
 
     print("\n\tRE-TRAINING ...")
     # Switch game parameters
     qdnAgent.env._game.switch_defined_pipes()
-    print("Testing agent after changes and before retraining" + qdnAgent.test())
+    print("Testing agent after changes and before retraining" + str(qdnAgent.test()))
 
     qdnAgent.retrain(path=path,
                      memory_load=True,
                      eps_start=0.01,
                      epochs=300)
 
-    print("Testing agent after changes and after retraining" + qdnAgent.test())
+    print("Testing agent after changes and after retraining" + str(qdnAgent.test()))
 #Show game
 # qdnAgent.load_policy_net(path + "/policy_net.pt")
 # qdnAgent.show_game(agent_vision=True, fps=60)
