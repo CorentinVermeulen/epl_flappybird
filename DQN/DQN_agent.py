@@ -120,6 +120,49 @@ class DQNAgent(AbstractAgent):
         self.writer.add_text('Hyperparameters', desc)
         self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
 
+        end_dic, scores, durations = self._run_training(id_training)
+
+        self._log_agent(id_training, **end_dic)
+        self.writer.close()
+        self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
+
+        return scores, durations, id_training
+
+    def retrain(self, path, eps_start, memory_load=True, epochs=2000):
+        id_training = path + f"_Retrain"
+        self.writer = SummaryWriter(id_training)
+        desc = "Retraining\n"
+        for k, v in self.__dict__.items():
+            desc += f"{k}: {v}\n"
+
+        # Load already trained agent
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+
+        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
+        print("Policy net loaded successfully")
+
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+
+        # Load memory?
+        self.memory = ReplayMemory(self.MEMORY_SIZE)
+        if memory_load:
+            self.memory.load(path + "/policy_net_memory.pkl")
+            print("Memory loaded successfully (", len(self.memory), " elements )")
+        # Retrain starting EPS Threshold?
+        self.eps_threshold = eps_start
+
+        self.writer.add_text('Hyperparameters', desc)
+        self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
+
+        end_dic, scores, durations = self._run_training(id_training)
+
+        self._log_agent(id_training, **end_dic)
+        self.writer.close()
+        self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
+
+    def _run_training(self, id_training):
         best_score = 0
         best_duration = 0
         scores = []
@@ -153,11 +196,14 @@ class DQNAgent(AbstractAgent):
                 target_state_dict = self.target_net.state_dict()
                 policy_state_dict = self.policy_net.state_dict()
 
-                for key in policy_state_dict:
-                    target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
-                self.target_net.load_state_dict(target_state_dict)
+                if self.step_done % 1 ==0:
+                    for key in policy_state_dict:
+                        target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[
+                            key]
+                    self.target_net.load_state_dict(target_state_dict)
 
                 if done:
+
                     train_score = self.env._game.score
                     scores.append(train_score)
                     durations.append(t + 1)
@@ -176,7 +222,7 @@ class DQNAgent(AbstractAgent):
 
                     print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
                           f"\tcD: {t + 1} cS: {train_score} "
-                          f"\tEPS:{self.eps_threshold}"
+                          f"\tEPS:{self.eps_threshold} - Target update rate: {int(1 + i_episode / 10)}"
                           , end='')
 
                     break
@@ -185,116 +231,8 @@ class DQNAgent(AbstractAgent):
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
 
-        self._log_agent(id_training, **end_dic)
-        self.writer.close()
-        self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
+        return end_dic, scores, durations
 
-        return scores, durations, id_training
-
-    def retrain(self, path, eps_start, memory_load=True, epochs=2000):
-        id_training = path + f"_Retrain"
-        self.writer = SummaryWriter(id_training)
-        desc = "Retraining\n"
-        for k, v in self.__dict__.items():
-            desc += f"{k}: {v}\n"
-
-        # Load already trained agent
-        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-
-        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
-        print("Policy net loaded successfully")
-
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-
-        # Load memory?
-        self.memory = ReplayMemory(self.MEMORY_SIZE)
-        if memory_load:
-            self.memory.load(path + "/policy_net_memory.pkl")
-            print("Memory loaded successfully (", len(self.memory), " elements )")
-        # Retrain starting EPS Threshold?
-        self.eps_threshold = eps_start
-
-        self.writer.add_text('Hyperparameters', desc)
-        self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
-
-        best_score = 0
-        best_duration = 0
-        scores = []
-        durations = []
-
-        for i_episode in range(epochs):
-            # Initialize the environment and state
-            total_reward = 0
-            state = self.env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-
-            # Start playing and learning
-            for t in count():
-                action = self._select_action(state)
-                observation, reward, terminated, _ = self.env.step(action.item())
-                reward = torch.tensor([reward])
-                total_reward += reward.item()
-
-                done = terminated
-                next_state = None if terminated else torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-
-                # Store transition in memory
-                self.memory.push(state, action, next_state, reward)
-
-                state = next_state
-
-                if self.env._game.score != 50:
-                    self._optimize_model()
-
-                # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
-                target_state_dict = self.target_net.state_dict()
-                policy_state_dict = self.policy_net.state_dict()
-
-                # Askip il faut mettre à jour le target_network moins souvent que le polocy network afin de
-                # stabiliser l'apprentissage
-
-                # for key in policy_state_dict: target_state_dict[key] = self.TAU *
-                # policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key] self.target_net.load_state_dict(
-                # target_state_dict)
-
-                if done:
-
-                    for key in policy_state_dict:
-                        target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
-                    self.target_net.load_state_dict(target_state_dict)
-
-                    train_score = self.env._game.score
-                    scores.append(train_score)
-                    durations.append(t + 1)
-                    dic = {'memory_size': len(self.memory), 'train_score': train_score, 'train_reward': total_reward,
-                           'duration': t + 1}
-
-                    best_score = max(train_score, best_score)
-                    if t + 1 > best_duration:
-                        best_duration = t + 1
-                        self.policy_net.log_weights(self.writer, i_episode)
-
-                        if train_score > 2:
-                            self._save_agent(id_training)
-
-                    self._write_stats(i_episode, **dic)
-
-                    print(f"\r{i_episode + 1}/{epochs} - D*: {best_duration} S*: {best_score} "
-                          f"\tcD: {t + 1} cS: {train_score} "
-                          f"\tEPS:{self.eps_threshold}"
-                          , end='')
-
-                    break
-        print(' ')
-        end_dic = self.__dict__
-        end_dic['best_score'] = best_score
-        end_dic['best_duration'] = best_duration
-
-        self._log_agent(id_training, **end_dic)
-        self.writer.close()
-        self._make_plot(scores, durations, id_training + f"/plot_S{best_score}.png")
 
     def test(self):
         with torch.no_grad():
@@ -439,28 +377,36 @@ env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
 hparams = {"EPOCHS": 1500, "BATCH_SIZE": 64, "layer_sizes": [64, 128, 256, 256]}
 qdnAgent = DQNAgent(env, hparams)
 
-# Training
-print("\n\tTRAINING ...")
-scores, durations, path = qdnAgent.train()
-print(f"Mean training duration: {np.mean(durations)}")
+# # Training
+# print("\n\tTRAINING ...")
+# scores, durations, path = qdnAgent.train()
+# print(f"Mean training duration: {np.mean(durations)}")
+#
+# # Testing (only possible if score is > 2)
+# if max(scores) > 2:
+#     print("\n\tTESTING ...")
+#     qdnAgent.load_policy_net(path + "/policy_net.pt")
+#
+#     print("Testing agent after training" + str(qdnAgent.test()))
+#
+#     print("\n\tRE-TRAINING ...")
+#     # Switch game parameters
+#     qdnAgent.env._game.switch_defined_pipes()
+#     print("Testing agent after changes and before retraining" + str(qdnAgent.test()))
+#
+#     qdnAgent.retrain(path=path,
+#                      memory_load=True,
+#                      eps_start=0.01,
+#                      epochs=1500)
+#
+#     print("Testing agent after changes and after retraining" + str(qdnAgent.test()))
 
-# Testing (only possible if score is > 2)
-if max(scores) > 2:
-    print("\n\tTESTING ...")
-    qdnAgent.load_policy_net(path + "/policy_net.pt")
-    print("Testing agent after training" + str(qdnAgent.test()))
-
-    print("\n\tRE-TRAINING ...")
-    # Switch game parameters
-    qdnAgent.env._game.switch_defined_pipes()
-    print("Testing agent after changes and before retraining" + str(qdnAgent.test()))
-
-    qdnAgent.retrain(path=path,
-                     memory_load=True,
-                     eps_start=0.01,
-                     epochs=1500)
-
-    print("Testing agent after changes and after retraining" + str(qdnAgent.test()))
 #Show game
 # qdnAgent.load_policy_net(path + "/policy_net.pt")
 # qdnAgent.show_game(agent_vision=True, fps=60)
+
+#Show game
+path = "runs/DQN/1501-123200_B64_Retrain_work_with_jump_force_changed"
+qdnAgent.load_policy_net(path + "/policy_net.pt")
+qdnAgent.env._game._pipes_are_random = True
+qdnAgent.show_game(agent_vision=True, fps=60)
