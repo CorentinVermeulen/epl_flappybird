@@ -1,25 +1,19 @@
-import csv
 import math
 import random
-import os
 import time
-
-import matplotlib.pyplot as plt
-import numpy as np
-from IPython import display
-
 from collections import namedtuple, deque
 from itertools import count
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.tensorboard import \
-    SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
+import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
 
-from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
 from AbstractAgent import AbstractAgent
+from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
