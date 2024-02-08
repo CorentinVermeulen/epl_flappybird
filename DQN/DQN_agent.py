@@ -15,7 +15,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import \
+    SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
 
 from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
 from AbstractAgent import AbstractAgent
@@ -112,7 +113,7 @@ class DQNAgent(AbstractAgent):
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
 
     def train(self):
-        id_training = 'runs/DQN/' + time.strftime("%d%m-%H%M%S") + f"_B{self.BATCH_SIZE}"
+        id_training = 'runs/Comp/' + time.strftime("%d%m-%H%M%S") + f"_B{self.BATCH_SIZE}"
         self.writer = SummaryWriter(id_training)
         desc = ""
         for k, v in self.__dict__.items():
@@ -126,10 +127,10 @@ class DQNAgent(AbstractAgent):
         self.writer.close()
         self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
 
-        return scores, durations, id_training
+        return scores, durations, end_dic, id_training
 
-    def retrain(self, path, eps_start, memory_load=True, epochs=2000):
-        id_training = path + f"_Retrain"
+    def retrain(self, name, path, eps_start, model_load=True, memory_load=True, epochs=2000):
+        id_training = path + f"_Retrain_{name}"
         self.writer = SummaryWriter(id_training)
         desc = "Retraining\n"
         for k, v in self.__dict__.items():
@@ -139,17 +140,18 @@ class DQNAgent(AbstractAgent):
         self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
         self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
 
-        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
-        print("Policy net loaded successfully")
+        if model_load:
+            self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
+            #print("Policy net loaded successfully")
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
 
-        # Load memory?
         self.memory = ReplayMemory(self.MEMORY_SIZE)
         if memory_load:
             self.memory.load(path + "/policy_net_memory.pkl")
-            print("Memory loaded successfully (", len(self.memory), " elements )")
+            #print("Memory loaded successfully (", len(self.memory), " elements )")
+
         # Retrain starting EPS Threshold?
         self.eps_threshold = eps_start
 
@@ -162,9 +164,12 @@ class DQNAgent(AbstractAgent):
         self.writer.close()
         self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
 
+        return scores, durations, end_dic, id_training
+
     def _run_training(self, id_training):
         best_score = 0
         best_duration = 0
+        n_episodes = self.EPOCHS
         scores = []
         durations = []
 
@@ -189,14 +194,13 @@ class DQNAgent(AbstractAgent):
 
                 state = next_state
 
-                if self.env._game.score != 50:
-                    self._optimize_model()
+                self._optimize_model()
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 target_state_dict = self.target_net.state_dict()
                 policy_state_dict = self.policy_net.state_dict()
 
-                if self.step_done % 1 ==0:
+                if self.step_done % 1 == 0:
                     for key in policy_state_dict:
                         target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[
                             key]
@@ -226,13 +230,18 @@ class DQNAgent(AbstractAgent):
                           , end='')
 
                     break
+
+            if self.env._game.score >= 30:  # Stop training if score = 30
+                n_episodes = i_episode
+                break
+
         print(' ')
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
+        end_dic['n_episodes'] = n_episodes
 
         return end_dic, scores, durations
-
 
     def test(self):
         with torch.no_grad():
@@ -279,7 +288,8 @@ class DQNAgent(AbstractAgent):
         reward_batch = torch.cat(batch.reward)
 
         # Actual Q(s_t,a)
-        state_action_values = self.policy_net(state_batch).gather(1,action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
+        state_action_values = self.policy_net(state_batch).gather(1,
+                                                                  action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.BATCH_SIZE)
@@ -401,12 +411,81 @@ qdnAgent = DQNAgent(env, hparams)
 #
 #     print("Testing agent after changes and after retraining" + str(qdnAgent.test()))
 
-#Show game
+# Show game
 # qdnAgent.load_policy_net(path + "/policy_net.pt")
 # qdnAgent.show_game(agent_vision=True, fps=60)
 
-#Show game
-path = "runs/DQN/1501-123200_B64_Retrain_work_with_jump_force_changed"
+# Show game
+# path = "runs/DQN/1501-123200_B64_Retrain_work_with_jump_force_changed"
+# qdnAgent.load_policy_net(path + "/policy_net.pt")
+# qdnAgent.env._game._pipes_are_random = True
+# qdnAgent.show_game(agent_vision=True, fps=60)
+
+
+## LEARNING WITH STOP AT 50 SCORE REACHED
+
+# Learn model until reaching score = 30
+scores, durations, end_dic, path = qdnAgent.train()
+print(
+    f"Mean training duration: {np.mean(durations):.2d} - Mean score: {np.mean(scores):.2d} - Best score: {max(scores)} - n_episodes: {end_dic['n_episodes']}")
+
+# Save model, memory and iterations to reach s=30
 qdnAgent.load_policy_net(path + "/policy_net.pt")
-qdnAgent.env._game._pipes_are_random = True
-qdnAgent.show_game(agent_vision=True, fps=60)
+print("\nTesting agent after training before change params" + str(qdnAgent.test()))
+
+# Change param
+env.update_game_logic_params(player_flap_acc=1, pipe_vel_x=-4, player_acc_y=0.6)  # Change player_acc_y from 1 to 0.6
+
+# Check new score
+qdnAgent.load_policy_net(path + "/policy_net.pt")
+print("\nTesting agent after training after change params" + str(qdnAgent.test()))
+
+# Retrain with no memory load and no model load
+print("\nno_memory_no_model:")
+scores, durations, end_dic, _ = qdnAgent.retrain(name="no_memory_no_model",
+                                                 path=path,
+                                                 model_load=False,
+                                                 memory_load=False,
+                                                 eps_start=0.01,
+                                                 epochs=1500)
+
+print(
+    f"Mean training duration: {np.mean(durations):.2d} - Mean score: {np.mean(scores):.2d} - Best score: {max(scores)} - n_episodes: {end_dic['n_episodes']}")
+print("\n")
+
+# Retrain with no memory load and model load
+print("no_memory_with_model:")
+scores, durations, end_dic, _ = qdnAgent.retrain(name="no_memory_with_model",
+                                                 path=path,
+                                                 model_load=True,
+                                                 memory_load=False,
+                                                 eps_start=0.01,
+                                                 epochs=1500)
+
+print(
+    f"Mean training duration: {np.mean(durations):.2d} - Mean score: {np.mean(scores):.2d} - Best score: {max(scores)} - n_episodes: {end_dic['n_episodes']}")
+print("\n")
+
+# Retrain with memory load and no model load
+print("\nwith_memory_no_model:")
+scores, durations, end_dic, _ = qdnAgent.retrain(name="with_memory_no_model",
+                                                 path=path,
+                                                 model_load=False,
+                                                 memory_load=True,
+                                                 eps_start=0.01,
+                                                 epochs=1500)
+
+print(
+    f"Mean training duration: {np.mean(durations):.2d} - Mean score: {np.mean(scores):.2d} - Best score: {max(scores)} - n_episodes: {end_dic['n_episodes']}")
+print("\n")
+
+# Retrain with memory load and model load
+print("\nwith_memory_with_model:")
+scores, durations, end_dic, _ = qdnAgent.retrain(name="with_memory_with_model",
+                                                 path=path,
+                                                 model_load=True,
+                                                 memory_load=True,
+                                                 eps_start=0.01,
+                                                 epochs=1500)
+print(
+    f"Mean training duration: {np.mean(durations):.2d} - Mean score: {np.mean(scores):.2d} - Best score: {max(scores)} - n_episodes: {end_dic['n_episodes']}")
