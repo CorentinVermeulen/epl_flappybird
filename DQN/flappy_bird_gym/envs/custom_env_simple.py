@@ -201,3 +201,10 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
     def close(self):
         """ Closes the environment. """
         super().close()
+
+    def update_game_logic_params(self, player_flap_acc , pipe_vel_x, player_acc_y):
+        """
+        Update the game logic parameters.
+        player_flap_acc , pipe_vel_x, player_acc
+        """
+        self._game.update_params(player_flap_acc , pipe_vel_x, player_acc_y)

@@ -168,16 +168,22 @@ class FlappyBirdLogic:
         self._player_idx_gen = cycle([0, 1, 2, 1])
         self._loop_iter = 0
 
+        # Params to update
         self.PLAYER_FLAP_ACC = PLAYER_FLAP_ACC # Jump force
         self.PIPE_VEL_X = PIPE_VEL_X  # Pipe velocity
         self.PLAYER_ACC_Y = PLAYER_ACC_Y  # Gravity
 
-    class Actions(IntEnum):
-        """ Possible actions for the player to take. """
-        IDLE, FLAP = 0, 1
+    def update_params(self, player_flap_acc , pipe_vel_x, player_acc_y):
+        self.PLAYER_FLAP_ACC = player_flap_acc
+        self.PIPE_VEL_X = pipe_vel_x
+        self.PLAYER_ACC_Y = player_acc_y
 
     def switch_defined_pipes(self):
         self._defined_pipes = DEFINED_PIPES_VPOS_shuffle
+
+    class Actions(IntEnum):
+        """ Possible actions for the player to take. """
+        IDLE, FLAP = 0, 1
 
     def _get_new_pipe(self) -> Dict[str, int]:
         """ Returns a randomly generated pipe. """
