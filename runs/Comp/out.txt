@@ -1,0 +1,103 @@
+349/1500 - D*: 2261 S*: 30 	cD: 2261 cS: 30 	EPS:0.01 - Target update rate: 35
+Mean training duration: 178.72 - Mean score: 1.36 - Best score: 30 - n_episodes: 348
+Testing agent after training before change params{'score': 7, 'duration': 621}
+
+ Changing params to {'PLAYER_FLAP_ACC': -6}
+	Testing agent after training after change params{'score': 0, 'duration': 101}
+
+	no_memory_no_model:
+117/1500 - D*: 3737 S*: 50 	cD: 3737 cS: 50 	EPS:0.01 - Target update rate: 12 
+	Mean training duration: 287.04 - Mean score: 2.66 - Best score: 50 - n_episodes: 116
+
+
+	no_memory_with_model:
+13/1500 - D*: 3737 S*: 50 	cD: 3737 cS: 50 	EPS:0.01 - Target update rate: 2 
+	Mean training duration: 459.77 - Mean score: 4.92 - Best score: 50 - n_episodes: 12
+
+
+
+	with_memory_no_model:
+188/1500 - D*: 2764 S*: 36 	cD: 2764 cS: 36 	EPS:0.01 - Target update rate: 19 
+	Mean training duration: 289.65 - Mean score: 2.81 - Best score: 36 - n_episodes: 187
+
+
+
+	with_memory_with_model:
+76/1500 - D*: 2764 S*: 36 	cD: 2764 cS: 36 	EPS:0.01 - Target update rate: 8 
+	Mean training duration: 526.11 - Mean score: 6.08 - Best score: 36 - n_episodes: 75
+
+ Changing params to {'PLAYER_ACC_Y': 0.5}
+	Testing agent after training after change params{'score': 0, 'duration': 110}
+
+	no_memory_no_model:
+1051/1500 - D*: 3504 S*: 46 	cD: 3504 cS: 46 	EPS:0.01 - Target update rate: 106 
+	Mean training duration: 233.37 - Mean score: 1.95 - Best score: 46 - n_episodes: 1050
+
+
+	no_memory_with_model:
+54/1500 - D*: 3737 S*: 50 	cD: 3737 cS: 50 	EPS:0.01 - Target update rate: 6 
+	Mean training duration: 458.54 - Mean score: 5.13 - Best score: 50 - n_episodes: 53
+
+
+
+	with_memory_no_model:
+394/1500 - D*: 2775 S*: 36 	cD: 2775 cS: 36 	EPS:0.01 - Target update rate: 40 
+	Mean training duration: 351.09 - Mean score: 3.63 - Best score: 36 - n_episodes: 393
+
+
+
+	with_memory_with_model:
+35/1500 - D*: 2764 S*: 36 	cD: 2764 cS: 36 	EPS:0.01 - Target update rate: 4 
+	Mean training duration: 542.29 - Mean score: 6.23 - Best score: 36 - n_episodes: 34
+
+ Changing params to {'PLAYER_FLAP_ACC': -13}
+	Testing agent after training after change params{'score': 0, 'duration': 110}
+
+	no_memory_no_model:
+1500/1500 - D*: 260 S*: 3 	cD: 93 cS: 0 	EPS:0.01 - Target update rate: 150 
+	Mean training duration: 111.77 - Mean score: 0.43 - Best score: 3 - n_episodes: 1500
+
+
+	no_memory_with_model:
+1500/1500 - D*: 121 S*: 1 	cD: 101 cS: 0 	EPS:0.01 - Target update rate: 150 
+	Mean training duration: 90.82 - Mean score: 0.05 - Best score: 1 - n_episodes: 1500
+
+
+
+	with_memory_no_model:
+1500/1500 - D*: 321 S*: 3 	cD: 174 cS: 1 	EPS:0.01 - Target update rate: 150 
+	Mean training duration: 89.70 - Mean score: 0.14 - Best score: 3 - n_episodes: 1500
+
+
+
+	with_memory_with_model:
+1500/1500 - D*: 181 S*: 1 	cD: 101 cS: 0 	EPS:0.01 - Target update rate: 150 
+	Mean training duration: 90.98 - Mean score: 0.06 - Best score: 1 - n_episodes: 1500
+
+ Changing params to {'PLAYER_ACC_Y': 1.5}
+	Testing agent after training after change params{'score': 1, 'duration': 174}
+
+	no_memory_no_model:
+764/1500 - D*: 2617 S*: 34 	cD: 2617 cS: 34 	EPS:0.01 - Target update rate: 77 
+	Mean training duration: 106.26 - Mean score: 0.12 - Best score: 34 - n_episodes: 763
+
+
+	no_memory_with_model:
+2/1500 - D*: 2986 S*: 39 	cD: 2986 cS: 39 	EPS:0.01 - Target update rate: 1 
+	Mean training duration: 1545.00 - Mean score: 19.50 - Best score: 39 - n_episodes: 1
+
+
+
+	with_memory_no_model:
+209/1500 - D*: 3356 S*: 44 	cD: 3356 cS: 44 	EPS:0.01 - Target update rate: 21 
+	Mean training duration: 367.72 - Mean score: 3.85 - Best score: 44 - n_episodes: 208
+
+
+
+	with_memory_with_model:
+157/1500 - D*: 3737 S*: 50 	cD: 3737 cS: 50 	EPS:0.01 - Target update rate: 16 
+	Mean training duration: 403.25 - Mean score: 4.32 - Best score: 50 - n_episodes: 156
+
+Time:  2355.529210417
+
+Process finished with exit code 0
