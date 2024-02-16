@@ -1,21 +1,22 @@
 import math
 import random
 import time
+import pickle
 from collections import namedtuple, deque
 from itertools import count
-
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
+from torch.utils.tensorboard import \
+    SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
 
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+UPDATE_TARGETNET_RATE = 10
 
-import pickle
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
+
 
 class ReplayMemory(object):
     def __init__(self, capacity):
@@ -68,25 +69,49 @@ class DQN(nn.Module):
         for name, param in self.named_parameters():
             writer.add_histogram(name, param, epoch)
 
-class DQNAgent():
+
+class DQNAgent_simple():
     def __init__(self, env, hyperparameters):
         self.env = env
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
-        self.device = 'mps'
         self.set_hyperparameters(hyperparameters)
+        self.reset()
+        self.writer = None
+        self.type="simple"
+        self.root_path = "runs/Comp/"
+        self.training_path = None
 
+    def reset(self):
+        # Policy and Target net
         self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
         self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-
+        # Memory
         self.memory = ReplayMemory(self.MEMORY_SIZE)
-
+        # Optimizer
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+        # Training variables
         self.step_done = 0
         self.eps_threshold = self.EPS_START
 
-        self.writer = None
+    def set_root_path(self, path):
+        self.root_path = path
+
+    def set_nets(self, path):
+        # create nets
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+
+        # Load nets
+        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        # Self.optimizer
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+
+    def set_memory(self, path):
+        self.memory = ReplayMemory(self.MEMORY_SIZE)
+        self.memory.load(path + "/policy_net_memory.pkl")
 
     def set_hyperparameters(self, hyperparameters):
         self.EPOCHS = hyperparameters.get('EPOCHS', 2000)
@@ -101,150 +126,13 @@ class DQNAgent():
         self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
 
-    def train(self):
-        id_training = 'runs/Comp/' + time.strftime("%d%m-%H%M%S") + f"_B{self.BATCH_SIZE}"
-        self.writer = SummaryWriter(id_training)
-        desc = ""
-        for k, v in self.__dict__.items():
-            desc += f"{k}: {v}\n"
-        self.writer.add_text('Hyperparameters', desc)
-        self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
+    def create_training_path(self):
+        t = time.strftime("%d%m-%H%M%S")
+        return self.root_path + f"{self.type}_{t}"
 
-        end_dic, scores, durations = self._run_training(id_training, self.EPOCHS)
-
-        self._log_agent(id_training, **end_dic)
-        self.writer.close()
-        self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
-
-        return scores, durations, end_dic, id_training
-
-    def retrain(self, name, path, eps_start, model_load=True, memory_load=True, epochs=2000):
-        id_training = path + f"_Retrain_{name}"
-        self.writer = SummaryWriter(id_training)
-        desc = "Retraining\n"
-        for k, v in self.__dict__.items():
-            desc += f"{k}: {v}\n"
-
-        # Load already trained agent
-        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        if model_load:
-            self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
-            #print("Policy net loaded successfully")
-
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-
-        self.memory = ReplayMemory(self.MEMORY_SIZE)
-        if memory_load:
-            self.memory.load(path + "/policy_net_memory.pkl")
-            #print("Memory loaded successfully (", len(self.memory), " elements )")
-
-        # Retrain starting EPS Threshold?
-        self.eps_threshold = eps_start
-
-        self.writer.add_text('Hyperparameters', desc)
-        self.writer.add_graph(self.policy_net, torch.zeros(1, self.n_observations))
-
-        end_dic, scores, durations = self._run_training(id_training,epochs)
-
-        self._log_agent(id_training, **end_dic)
-        self.writer.close()
-        self._make_plot(scores, durations, id_training + f"/plot_S{max(scores)}.png")
-
-        return scores, durations, end_dic, id_training
-
-    def _run_training(self, id_training, epochs):
-        best_score = 0
-        best_duration = 0
-        n_episodes = self.EPOCHS
-        scores = []
-        durations = []
-
-        for i_episode in range(epochs):
-            # Initialize the environment and state
-            total_reward = 0
-            state = self.env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-
-            # Start playing and learning
-            for t in count():
-                action = self._select_action(state)
-                observation, reward, terminated, info = self.env.step(action.item())
-                reward = torch.tensor([reward])
-                total_reward += reward.item()
-
-                done = terminated
-                next_state = None if terminated else torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-
-                # Store transition in memory
-                self.memory.push(state, action, next_state, reward)
-
-                state = next_state
-
-                self._optimize_model()
-
-                # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
-                target_state_dict = self.target_net.state_dict()
-                policy_state_dict = self.policy_net.state_dict()
-
-                if self.step_done % 1 == 0:
-                    for key in policy_state_dict:
-                        target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[
-                            key]
-                    self.target_net.load_state_dict(target_state_dict)
-
-                if done:
-
-                    train_score = self.env._game.score
-                    scores.append(train_score)
-                    durations.append(t + 1)
-                    dic = {'memory_size': len(self.memory), 'train_score': train_score, 'train_reward': total_reward,
-                           'duration': t + 1}
-
-                    best_score = max(train_score, best_score)
-                    if t + 1 > best_duration:
-                        best_duration = t + 1
-                        self.policy_net.log_weights(self.writer, i_episode)
-
-                        if train_score > 2:
-                            self._save_agent(id_training)
-
-                    self._write_stats(i_episode, **dic)
-
-                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
-                          f"\tcD: {t + 1} cS: {train_score} "
-                          f"\tEPS:{self.eps_threshold} - Target update rate: {int(1 + i_episode / 10)}"
-                          , end='')
-
-                    break
-
-            if self.env._game.score >= 30:  # Stop training if score = 30
-                n_episodes = i_episode
-                break
-
-        print(' ')
-        end_dic = self.__dict__
-        end_dic['best_score'] = best_score
-        end_dic['best_duration'] = best_duration
-        end_dic['n_episodes'] = n_episodes
-
-        return end_dic, scores, durations
-
-    def test(self):
-        with torch.no_grad():
-            state = self.env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-            for t in count():
-                action = self.policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, done, _ = self.env.step(action.item())
-                state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-                if done:
-                    next_state = None
-                    return {'score': self.env._game.score, 'duration': t + 1}
-                else:
-                    next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
-                state = next_state
+    def _process_state(self, state):
+        ### TO CHNAGE FOR RGB ###
+        return torch.tensor(state, dtype=torch.float32).unsqueeze(0)
 
     def _select_action(self, state):
         sample = random.random()
@@ -296,16 +184,21 @@ class DQNAgent():
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
+    def _log_agent(self, **kwargs):
+        with open(self.training_path + "/param_log.txt", 'w') as f:
+            for k, v in kwargs.items():
+                f.write(f"{k}: {v}\n")
+
     def _write_stats(self, i_episode, **kwargs):
         for key, value in kwargs.items():
             self.writer.add_scalar(key, value, i_episode)
 
-    def _log_agent(self, name, **kwargs):
-        with open(name + "/param_log.txt", 'w') as f:
-            for k, v in kwargs.items():
-                f.write(f"{k}: {v}\n")
+    def _save_agent(self):
+        name = self.training_path + "/policy_net"
+        torch.save(self.policy_net.state_dict(), name + '.pt')
+        self.memory.save(name + '_memory')
 
-    def _make_plot(self, scores, durations, name):
+    def _make_plot(self, scores, durations):
         plt.figure(figsize=(10, 5))
         plt.subplot(2, 1, 1)
         plt.plot(scores)
@@ -316,24 +209,121 @@ class DQNAgent():
         plt.title(f"Durations (mean: {np.mean(durations)})")
         plt.xlabel('Epoch')
 
-        plt.savefig(name)
+        plt.savefig(self.training_path + f"/plot_S{max(scores)}.png")
         plt.close()
 
-    def _save_agent(self, id_training):
-        name = id_training + "/policy_net"
-        torch.save(self.policy_net.state_dict(), name + '.pt')
-        self.memory.save(name + '_memory')
+    def train(self, retrain_path=None, retrain_epochs=None, name=None):
+        if retrain_path:
+            self.training_path = retrain_path + f"{'_retrain_' + name if name else '_retrain'}"
+        else:
+            self.training_path = self.create_training_path()
 
-    def load_policy_net(self, path):
-        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        self.policy_net.load_state_dict(torch.load(path))
+        self.writer = SummaryWriter(self.training_path)
 
-    def show_game(self, agent_vision=False, fps=60, policy_net=None):
+        best_score = 0
+        best_duration = 0
+        scores = []
+        durations = []
+
+        n_to_30 = 0
+
+        for i_episode in range(retrain_epochs if retrain_epochs else self.EPOCHS):
+            episode_reward = 0
+            state = self.env.reset()
+            state = self._process_state(state)
+
+            for t in count():
+                action = self._select_action(state)
+                observation, reward, done, info = self.env.step(action.item())
+                observation = self._process_state(observation)
+                reward = torch.tensor([reward])
+                episode_reward += reward.item()
+                next_state = None if done else observation
+                self.memory.push(state, action, next_state, reward)
+
+                state = next_state
+                self._optimize_model()
+
+                # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
+                if self.step_done % UPDATE_TARGETNET_RATE == 0:
+                    target_state_dict = self.target_net.state_dict()
+                    policy_state_dict = self.policy_net.state_dict()
+
+                    for key in policy_state_dict:
+                        target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
+                    self.target_net.load_state_dict(target_state_dict)
+
+                if done:
+                    train_score = self.env._game.score
+                    scores.append(train_score)
+                    durations.append(t + 1)
+                    dic = {'memory_size': len(self.memory),
+                           'train_score': train_score,
+                           'train_reward': episode_reward,
+                           'duration': t + 1,
+                           }
+                    self._write_stats(i_episode, **dic)
+
+                    best_score = max(train_score, best_score)
+
+                    if t + 1 > best_duration:
+                        best_duration = t + 1
+                        self.policy_net.log_weights(self.writer, i_episode)
+
+                        if train_score > 2:
+                            self._save_agent()
+
+                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
+                          f"\tcD: {t + 1} cS: {train_score} "
+                          f"\tEPS:{self.eps_threshold}",end='')
+
+                    break
+            # Stop when score is above 30
+            if self.env._game.score >= 30:
+                n_to_30 = i_episode
+                break
+
+        end_dic = self.__dict__
+        end_dic['best_score'] = best_score
+        end_dic['best_duration'] = best_duration
+        end_dic['n_to_30'] = n_to_30
+
+        self._log_agent(**end_dic)
+        self._make_plot(scores, durations)
+        self.writer.close()
+        return scores, durations, end_dic
+
+    def retrain(self, training_path, name=None, load_network=False, load_memory=False, eps_start=0.01, epochs=1500):
+
+        self.reset()
+        if load_network:
+            self.set_nets(training_path)
+        if load_memory:
+            self.set_memory(training_path)
+
+        self.eps_threshold = eps_start
+
+        return self.train(retrain_path=training_path, retrain_epochs=epochs, name=name)
+
+    def test(self):
+        with torch.no_grad():
+            state = self.env.reset()
+            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            for t in count():
+                action = self.policy_net(state).max(1)[1].view(1, 1)
+                observation, reward, done, _ = self.env.step(action.item())
+                state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+                if done:
+                    next_state = None
+                    return {'score': self.env._game.score, 'duration': t + 1}
+                else:
+                    next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+                state = next_state
+
+    def show_game(self, agent_vision=False, fps=60):
         if agent_vision:
             self.env.set_custom_render()
 
-        if policy_net is not None:
-            self.policy_net = policy_net
 
         sleep_time = 1 / fps
 
