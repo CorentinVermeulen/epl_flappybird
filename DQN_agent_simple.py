@@ -273,9 +273,10 @@ class DQNAgent_simple():
                         if train_score > 2:
                             self._save_agent()
 
-                    print(f"\r{i_episode + 1}/{self.EPOCHS} - D*: {best_duration} S*: {best_score} "
-                          f"\tcD: {t + 1} cS: {train_score} "
-                          f"\tEPS:{self.eps_threshold}",end='')
+                    print(f"\r{i_episode + 1}/{self.EPOCHS}"
+                          f"- D: {t + 1} (D* {best_duration}) "
+                          f"\tS: {train_score} (S* {best_score}) "
+                          f"\tEPS:{self.eps_threshold} , mean duration {np.mean(durations):.2f}",end='')
 
                     break
             # Stop when score is above 30
@@ -291,6 +292,7 @@ class DQNAgent_simple():
         self._log_agent(**end_dic)
         self._make_plot(scores, durations)
         self.writer.close()
+        print(" ")
         return scores, durations, end_dic
 
     def retrain(self, training_path, name=None, load_network=False, load_memory=False, eps_start=0.01, epochs=1500):
