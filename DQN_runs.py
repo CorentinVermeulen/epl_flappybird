@@ -11,11 +11,11 @@ env = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
 env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
 hparams = {"EPOCHS": 1500,
-           "BATCH_SIZE": 2000,
+           "BATCH_SIZE": 64,
            "EPS_DECAY": 4000,
            "layer_sizes": [64, 128, 256, 256]}
 dqnAgent = DQNAgent_simple(env, hparams)
-dqnAgent.train()
+#dqnAgent.train()
 
 
 # # Training
@@ -37,8 +37,16 @@ dqnAgent.train()
 #     retraining_path = dqnAgent.training_path
 
 #Show game
-training_path = dqnAgent.training_path
+#training_path = dqnAgent.training_path
+training_path = "runs/Comp/simple_1602-125027_retrain_testing"
 dqnAgent.set_nets(training_path)
-dqnAgent.show_game(agent_vision=True, fps=60)
+#dqnAgent.show_game(agent_vision=True, fps=60)
 
+d = {"PLAYER_FLAP_ACC":  -9,
+     "PLAYER_ACC_Y": 1,
+     "pipes_are_random":True}
+
+dqnAgent.update_env(d)
+
+dqnAgent.show_game(agent_vision=True, fps=60)
 

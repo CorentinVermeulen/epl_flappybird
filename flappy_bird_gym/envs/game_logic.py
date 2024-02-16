@@ -116,6 +116,9 @@ class FlappyBirdLogic:
             played. If `None`, then no sound should be played.
         player_idx (int): Current index of the bird's animation cycle.
     """
+    class Actions(IntEnum):
+        """ Possible actions for the player to take. """
+        IDLE, FLAP = 0, 1
 
     def __init__(self,
                  screen_size: Tuple[int, int],
@@ -136,7 +139,7 @@ class FlappyBirdLogic:
         self._pipe_gap_size = PIPE_GAP_SIZE
         self._defined_pipes = defined_pipes
         self._pipe_nbr = 0
-        self._pipes_are_random = False
+        self.pipes_are_random = False
 
         # Generate 2 new pipes to add to upper_pipes and lower_pipes lists
         new_pipe1 = self._get_new_pipe()
@@ -176,27 +179,21 @@ class FlappyBirdLogic:
     def update_params(self, params) -> None:
         """ Updates the game's parameters.
 
-        Args:
-            params (Dict[str, int]): Dictionary containing the new values for the
-                game's parameters.
+        Args: params (Dict[str, int]): Dictionary containing the new values for the game's parameters.
         """
-        self.PLAYER_FLAP_ACC = params.get("PLAYER_FLAP_ACC", PLAYER_FLAP_ACC)
-        self.PIPE_VEL_X = params.get("PIPE_VEL_X", PIPE_VEL_X)
-        self.PLAYER_ACC_Y = params.get("PLAYER_ACC_Y", PLAYER_ACC_Y)
-        self._pipes_are_random = params.get("random_pipes", False)
-
+        for param_name, param_value in params.items():
+            if hasattr(self, param_name):
+                setattr(self, param_name, param_value)
+            else:
+                print(f"Warning: Attribute '{param_name}' does not exist in this object.")
 
     def switch_defined_pipes(self):
         self._defined_pipes = DEFINED_PIPES_VPOS_shuffle
 
-    class Actions(IntEnum):
-        """ Possible actions for the player to take. """
-        IDLE, FLAP = 0, 1
-
     def _get_new_pipe(self) -> Dict[str, int]:
         """ Returns a randomly generated pipe. """
         # y of gap between upper and lower pipe
-        if self._pipes_are_random:
+        if self.pipes_are_random:
             gap_y = random.randrange(0, int(self.base_y * 0.6 - self._pipe_gap_size))
         else:
             gap_y = self._defined_pipes[self._pipe_nbr]
@@ -206,7 +203,6 @@ class FlappyBirdLogic:
 
         pipe_x = self._screen_width + 10
         return [{"x": pipe_x, "y": gap_y - PIPE_HEIGHT},  {"x": pipe_x, "y": gap_y + self._pipe_gap_size},]
-
 
     def check_crash(self) -> bool:
         """ Returns True if player collides with the ground (base)/sky or a pipe.
