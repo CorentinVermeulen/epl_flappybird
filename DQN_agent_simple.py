@@ -123,7 +123,7 @@ class DQNAgent_simple():
         self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
         self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
-        self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 10)
+        self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 1)
 
     def create_training_path(self):
         t = time.strftime("%d%m-%H%M%S")
