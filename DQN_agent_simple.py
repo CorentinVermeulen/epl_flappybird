@@ -13,8 +13,6 @@ import torch.optim as optim
 from torch.utils.tensorboard import \
     SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
 
-UPDATE_TARGETNET_RATE = 10
-
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 
@@ -71,7 +69,7 @@ class DQN(nn.Module):
 
 
 class DQNAgent_simple():
-    def __init__(self, env, hyperparameters):
+    def __init__(self, env, hyperparameters, root_path= "runs/Comp/"):
         self.env = env
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
@@ -79,7 +77,7 @@ class DQNAgent_simple():
         self.reset()
         self.writer = None
         self.type="simple"
-        self.root_path = "runs/Comp/"
+        self.root_path = root_path
         self.training_path = None
 
     def reset(self):
@@ -125,6 +123,7 @@ class DQNAgent_simple():
         self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
         self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
+        self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 10)
 
     def create_training_path(self):
         t = time.strftime("%d%m-%H%M%S")
@@ -245,7 +244,7 @@ class DQNAgent_simple():
                 self._optimize_model()
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
-                if self.step_done % UPDATE_TARGETNET_RATE == 0:
+                if self.step_done % self.UPDATE_TARGETNET_RATE == 0:
                     target_state_dict = self.target_net.state_dict()
                     policy_state_dict = self.policy_net.state_dict()
 
@@ -310,28 +309,26 @@ class DQNAgent_simple():
     def test(self):
         with torch.no_grad():
             state = self.env.reset()
-            state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            state = self._process_state(state)
             for t in count():
                 action = self.policy_net(state).max(1)[1].view(1, 1)
                 observation, reward, done, _ = self.env.step(action.item())
-                state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
                 if done:
                     next_state = None
                     return {'score': self.env._game.score, 'duration': t + 1}
                 else:
-                    next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+                    next_state = self._process_state(observation)
                 state = next_state
 
     def show_game(self, agent_vision=False, fps=60):
         if agent_vision:
             self.env.set_custom_render()
 
-
         sleep_time = 1 / fps
 
         total_reward = torch.tensor([0])
         state = self.env.reset()
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        state = self._process_state(state)
         for t in count():
             action = self.policy_net(state).max(1)[1].view(1, 1)
             observation, reward, terminated, info = self.env.step(action.item())
@@ -344,13 +341,13 @@ class DQNAgent_simple():
             time.sleep(sleep_time)
 
             reward = torch.tensor([reward])
-            total_reward = total_reward + reward
+            total_reward += reward
             done = terminated
 
             if terminated:
                 next_state = None
             else:
-                next_state = torch.tensor(observation, dtype=torch.float32).unsqueeze(0)
+                next_state = self._process_state(observation)
 
             # Move to the next state
             state = next_state
