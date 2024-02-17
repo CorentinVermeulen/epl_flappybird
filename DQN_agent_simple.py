@@ -46,7 +46,8 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, n_observations, n_actions, sizes=[64, 128, 256, 256]):
+    def __init__(self, n_observations, n_actions, sizes=[64, 128, 256, 256], name=None):
+        self.name = name
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, sizes[0])
         self.layer2 = nn.Linear(sizes[0], sizes[1])
@@ -80,10 +81,10 @@ class DQNAgent_simple():
         self.root_path = root_path
         self.training_path = None
 
-    def reset(self):
+    def reset(self, name='network'):
         # Policy and Target net
-        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
-        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES)
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name)
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name+"_target")
         self.target_net.load_state_dict(self.policy_net.state_dict())
         # Memory
         self.memory = ReplayMemory(self.MEMORY_SIZE)
@@ -296,7 +297,7 @@ class DQNAgent_simple():
 
     def retrain(self, training_path, name=None, load_network=False, load_memory=False, eps_start=0.01, epochs=1500):
 
-        self.reset()
+        self.reset(name)
         if load_network:
             self.set_nets(training_path)
         if load_memory:

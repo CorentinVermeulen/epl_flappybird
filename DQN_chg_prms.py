@@ -43,11 +43,11 @@ dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
 
 params = [{"PLAYER_FLAP_ACC": -6},
           {"PLAYER_FLAP_ACC": -6},
-          {"PLAYER_ACC_Y ": 0.3},
-          {"PLAYER_ACC_Y ": 1.7},
+          {"PLAYER_ACC_Y": 0.3},
+          {"PLAYER_ACC_Y": 1.7},
           {"pipes_are_random": True}]
-df = pd.DataFrame(columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
 
+df = pd.DataFrame(columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
 
 # Learn with default parameters
 print("\n\tTRAINING ...")
@@ -57,11 +57,8 @@ scores, durations, end_dic = dqnAgent.train()
 training_path = dqnAgent.training_path
 print(f"\n\tTESTING ...")
 test_dic = dqnAgent.test()
-
+print(f"test: {test_dic}")
 log_df(df, "Initial training", scores, durations, end_dic, test_dic, t)
-
-# Test model
-print(f"\n\tTESTING ... {dqnAgent.test()}")
 
 # Change parameter
 for param in params:
@@ -74,6 +71,7 @@ for param in params:
     scores, durations, end_dic = dqnAgent.retrain(training_path, name=name + 'NF_MF', load_network=False,
                                                   load_memory=False, eps_start=0.99, epochs=1500)
     test_dic = dqnAgent.test()
+    print(f"test: {test_dic}")
     log_df(df, name, scores, durations, end_dic, test_dic, t)
 
 
@@ -84,7 +82,9 @@ for param in params:
                                                   load_memory=True, eps_start=0.5, epochs=1500)
 
     test_dic = dqnAgent.test()
+    print(f"test: {test_dic}")
     log_df(df, name, scores, durations, end_dic, test_dic, t)
+    df.to_csv(f"{root}df.csv")
 
 print(df)
 df.to_csv(f"{root}df.csv")

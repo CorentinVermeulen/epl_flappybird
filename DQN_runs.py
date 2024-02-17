@@ -30,7 +30,7 @@ def log_df(df, name, scores, durations, end_dic, test_dic, t):
                        }
 
 
-for update_rate in [1, 10, 25, 100]:
+for update_rate in [1, 10, 25]:
     for i in range(3):
         ti = time.perf_counter()
         dqnAgent.reset()
