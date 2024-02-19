@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import \
     SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
+from MetricLogger import MetricLogger
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
@@ -124,7 +125,7 @@ class DQNAgent_simple():
         self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
         self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
-        self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 1)
+        self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 3)
 
     def create_training_path(self):
         t = time.strftime("%d%m-%H%M%S")
@@ -177,12 +178,13 @@ class DQNAgent_simple():
         # Compute loss
         criterion = nn.SmoothL1Loss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-
+        loss_val = loss.item()
         # optimize the model
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
+        return loss_val
 
     def _log_agent(self, **kwargs):
         with open(self.training_path + "/param_log.txt", 'w') as f:
@@ -198,17 +200,41 @@ class DQNAgent_simple():
         torch.save(self.policy_net.state_dict(), name + '.pt')
         self.memory.save(name + '_memory')
 
-    def _make_plot(self, scores, durations):
-        plt.figure(figsize=(10, 5))
-        plt.subplot(2, 1, 1)
-        plt.plot(scores)
+    def _make_plot(self, scores, durations,losses, n_to_full_memory=None, n_exploring=None):
+        def running_mean(x, N):
+            cumsum = np.cumsum(np.insert(x, 0, 0))
+            out = (cumsum[N:] - cumsum[:-N]) / N
+            prefix = np.repeat(np.nan, N - 1)
+            return np.concatenate((prefix, out))
+        N = 50
+
+        plt.figure(figsize=(10, 10))
+        plt.subplot(3, 1, 1)
+        plt.plot(scores, alpha=0.5)
+        plt.plot(running_mean(scores, N), 'g')
+        plt.vlines(n_to_full_memory, 0, max(scores), colors='r', linestyles='dashed', label='Memory full')
+        plt.vlines(n_exploring, 0, max(scores), colors='b', linestyles='dashed', label='End exploration')
         plt.title(f"Scores (max: {np.max(scores)})")
 
-        plt.subplot(2, 1, 2)
-        plt.plot(durations)
-        plt.title(f"Durations (mean: {np.mean(durations)})")
+        plt.subplot(3, 1, 2)
+        plt.plot(durations, alpha=0.5)
+        plt.plot(running_mean(durations, N), 'g')
+        plt.vlines(n_to_full_memory, 0, max(durations), colors='r', linestyles='dashed', label='Memory full')
+        plt.vlines(n_exploring, 0, max(durations), colors='b', linestyles='dashed', label='End exploration')
+        plt.title(f"Durations (mean: {np.mean(durations):.2f})")
         plt.xlabel('Epoch')
 
+        plt.subplot(3, 1, 3)
+        plt.plot(losses, alpha=0.5)
+        plt.plot(running_mean(losses, N*100), 'g')
+        plt.vlines(n_to_full_memory, 0, max(losses), colors='r', linestyles='dashed', label='Memory full')
+        plt.vlines(n_exploring, 0, max(losses), colors='b', linestyles='dashed', label='End exploration')
+        plt.title(f"Losses")
+        plt.xlabel('Global step')
+
+        plt.legend()
+
+        plt.tight_layout()
         plt.savefig(self.training_path + f"/plot_S{max(scores)}.png")
         plt.close()
 
@@ -224,8 +250,11 @@ class DQNAgent_simple():
         best_duration = 0
         scores = []
         durations = []
+        losses = []
 
         n_to_30 = 0
+        n_to_full_memory = 0
+        n_exploring = 0
 
         for i_episode in range(retrain_epochs if retrain_epochs else self.EPOCHS):
             episode_reward = 0
@@ -240,9 +269,16 @@ class DQNAgent_simple():
                 episode_reward += reward.item()
                 next_state = None if done else observation
                 self.memory.push(state, action, next_state, reward)
+                if len(self.memory) == self.MEMORY_SIZE and n_to_full_memory == 0:
+                    n_to_full_memory = i_episode
+
+                if self.eps_threshold > self.EPS_END:
+                    n_exploring = i_episode
 
                 state = next_state
-                self._optimize_model()
+                loss_val = self._optimize_model()
+                if loss_val:
+                    losses.append(loss_val)
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 if self.step_done % self.UPDATE_TARGETNET_RATE == 0:
@@ -280,17 +316,19 @@ class DQNAgent_simple():
 
                     break
             # Stop when score is above 30
-            if self.env._game.score >= 30:
+            if self.env._game.score >= 30 and n_to_30 == 0:
                 n_to_30 = i_episode
-                break
+                #break
 
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
         end_dic['n_to_30'] = n_to_30
+        end_dic['n_to_full_memory'] = n_to_full_memory
+        end_dic['n_exploring'] = n_exploring
 
         self._log_agent(**end_dic)
-        self._make_plot(scores, durations)
+        self._make_plot(scores, durations,losses, n_to_full_memory, n_exploring)
         self.writer.close()
         print(" ")
         return scores, durations, end_dic

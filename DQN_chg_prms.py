@@ -41,10 +41,10 @@ hparams = {"EPOCHS": 1500,
 root = "runs/Change_parms/"
 dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
 
-params = [{"PLAYER_FLAP_ACC": -6},
+params = [{"PLAYER_FLAP_ACC": -12},
           {"PLAYER_FLAP_ACC": -6},
-          {"PLAYER_ACC_Y": 0.3},
-          {"PLAYER_ACC_Y": 1.7},
+          {"PLAYER_ACC_Y": 0.5},
+          {"PLAYER_ACC_Y": 1.5},
           {"pipes_are_random": True}]
 
 df = pd.DataFrame(columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
@@ -68,8 +68,7 @@ for param in params:
     name = str(param) + 'NF_MF'
     t = time.perf_counter()
     dqnAgent.reset()
-    scores, durations, end_dic = dqnAgent.retrain(training_path, name=name + 'NF_MF', load_network=False,
-                                                  load_memory=False, eps_start=0.99, epochs=1500)
+    scores, durations, end_dic = dqnAgent.train()
     test_dic = dqnAgent.test()
     print(f"test: {test_dic}")
     log_df(df, name, scores, durations, end_dic, test_dic, t)

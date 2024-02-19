@@ -12,8 +12,8 @@ hparams = {"EPOCHS": 1500,
            "BATCH_SIZE": 64,
            "EPS_DECAY": 4000,
            "layer_sizes": [64, 128, 256, 256]}
-root = "runs/Update_rate/"
-dqnAgent = DQNAgent_simple(env, hparams, root_path="runs/Update_rate/")
+root = "runs/Batch_size_exploration/"
+dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
 
 df = pd.DataFrame(
     columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
@@ -30,24 +30,44 @@ def log_df(df, name, scores, durations, end_dic, test_dic, t):
                        }
 
 
-for update_rate in [1, 10, 25]:
-    for i in range(3):
-        ti = time.perf_counter()
-        dqnAgent.reset()
-        print(f"\nUpdate rate: {update_rate}")
-        hparams["UPDATE_TARGETNET_RATE"] = update_rate
-        dqnAgent.set_hyperparameters(hparams)
+ti = time.perf_counter()
+dqnAgent.reset()
+hparams = {"EPOCHS": 20000, "BATCH_SIZE": 512, "EPS_DECAY": 8000}
+dqnAgent.set_hyperparameters(hparams)
+scores, durations, end_dic = dqnAgent.train()
+test_dic = dqnAgent.test()
+log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
+df.to_csv(f"{root}Batch_size_exploration.csv")
 
-        scores, durations, end_dic = dqnAgent.train()
-        test_dic = dqnAgent.test()
-
-        name = f"U{update_rate}_{i}"
-        t = time.perf_counter() - ti
-        log_df(df, name, scores, durations, end_dic, test_dic, t)
-        df.to_csv(f"{root}Update_rate.csv")
+# ti = time.perf_counter()
+# dqnAgent.reset()
+# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 256, "EPS_DECAY": 8000}
+# dqnAgent.set_hyperparameters(hparams)
+# scores, durations, end_dic = dqnAgent.train()
+# test_dic = dqnAgent.test()
+# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
+# df.to_csv(f"{root}Batch_size_exploration.csv")
+#
+# ti = time.perf_counter()
+# dqnAgent.reset()
+# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 512, "EPS_DECAY": 4000}
+# dqnAgent.set_hyperparameters(hparams)
+# scores, durations, end_dic = dqnAgent.train()
+# test_dic = dqnAgent.test()
+# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
+# df.to_csv(f"{root}Batch_size_exploration.csv")
+#
+# ti = time.perf_counter()
+# dqnAgent.reset()
+# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 512, "EPS_DECAY": 8000}
+# dqnAgent.set_hyperparameters(hparams)
+# scores, durations, end_dic = dqnAgent.train()
+# test_dic = dqnAgent.test()
+# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
+# df.to_csv(f"{root}Batch_size_exploration.csv")
 
 print(df)
-df.to_csv(f"{root}Update_rate.csv")
+df.to_csv(f"{root}Batch_size_exploration.csv")
 
 # dqnAgent.train()
 b = 0
