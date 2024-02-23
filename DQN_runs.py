@@ -4,21 +4,6 @@ import numpy as np
 from DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 
-t = time.perf_counter()
-env = FlappyBirdEnv()
-env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
-hparams = {"EPOCHS": 1500,
-           "BATCH_SIZE": 64,
-           "EPS_DECAY": 4000,
-           "layer_sizes": [64, 128, 256, 256]}
-root = "runs/Batch_size_exploration/"
-dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
-
-df = pd.DataFrame(
-    columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
-
-
 def log_df(df, name, scores, durations, end_dic, test_dic, t):
     df.loc[len(df)] = {'Name': name,
                        'n_to_30': end_dic['n_to_30'],
@@ -28,16 +13,43 @@ def log_df(df, name, scores, durations, end_dic, test_dic, t):
                        'test_duration': test_dic['duration'],
                        'total_time': time.perf_counter() - t
                        }
+df = pd.DataFrame( columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
 
 
-ti = time.perf_counter()
-dqnAgent.reset()
-hparams = {"EPOCHS": 20000, "BATCH_SIZE": 512, "EPS_DECAY": 8000}
-dqnAgent.set_hyperparameters(hparams)
+
+# most simple agent
+
+env = FlappyBirdEnv()
+env.obs_var = ['player_y', 'pipe_center_x', 'pipe_center_y', 'player_vel_y'] #['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
+env.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
+env.reset()
+n_obs = env.observation_space.shape[0]
+n_actions = env.action_space.n
+
+hparams = {"EPOCHS": 4000,
+           "BATCH_SIZE": 64,
+           "EPS_DECAY": 16000,
+           "layer_sizes": [n_obs*4, n_obs*8, n_obs*16, n_obs*32]}
+
+root = "runs/SimpleAgent/"
+dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
 scores, durations, end_dic = dqnAgent.train()
 test_dic = dqnAgent.test()
-log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
-df.to_csv(f"{root}Batch_size_exploration.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ti = time.perf_counter()
 # dqnAgent.reset()
@@ -47,77 +59,4 @@ df.to_csv(f"{root}Batch_size_exploration.csv")
 # test_dic = dqnAgent.test()
 # log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
 # df.to_csv(f"{root}Batch_size_exploration.csv")
-#
-# ti = time.perf_counter()
-# dqnAgent.reset()
-# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 512, "EPS_DECAY": 4000}
-# dqnAgent.set_hyperparameters(hparams)
-# scores, durations, end_dic = dqnAgent.train()
-# test_dic = dqnAgent.test()
-# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
-# df.to_csv(f"{root}Batch_size_exploration.csv")
-#
-# ti = time.perf_counter()
-# dqnAgent.reset()
-# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 512, "EPS_DECAY": 8000}
-# dqnAgent.set_hyperparameters(hparams)
-# scores, durations, end_dic = dqnAgent.train()
-# test_dic = dqnAgent.test()
-# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
-# df.to_csv(f"{root}Batch_size_exploration.csv")
 
-print(df)
-df.to_csv(f"{root}Batch_size_exploration.csv")
-
-# dqnAgent.train()
-b = 0
-if b:
-    # Training
-    print("\n\tTRAINING ...")
-    scores, durations, end_dic = dqnAgent.train()
-    training_path = dqnAgent.training_path
-    print(f"Mean training duration: {np.mean(durations)}")
-
-    # Testing (only possible if score is > 2)
-    if max(scores) > 2:
-        print("\n\tTESTING ...")
-        dqnAgent.reset()
-        dqnAgent.set_nets(training_path)
-        print("Testing agent after training" + str(dqnAgent.test()))
-
-        print("\n\tCHANGING PARAMETERS...")
-        d = {"PLAYER_FLAP_ACC": -6,
-             "pipes_are_random": True}
-        dqnAgent.update_env(d)
-        print(f"New parameters: {d}")
-
-        print("\n\tDIRECT TEST  ...")
-        dqnAgent.reset()
-        dqnAgent.set_nets(training_path)
-        print("Testing agent before retraining" + str(dqnAgent.test()))
-
-        print("\n\tRE-TRAINING ...")
-        dqnAgent.reset()
-        dqnAgent.retrain(training_path, name="testing", load_network=True, load_memory=True, eps_start=0.5, epochs=1500)
-        retraining_path = dqnAgent.training_path
-
-        print("\n\tFINAL TEST  ...")
-        dqnAgent.reset()
-        dqnAgent.set_nets(retraining_path)
-        print("Testing agent after retraining" + str(dqnAgent.test()))
-
-# Show game
-a = 0
-if a:
-    # training_path = dqnAgent.training_path
-    training_path = "runs/Comp/simple_1602-155157_retrain_testing"
-    dqnAgent.set_nets(training_path)
-    dqnAgent.show_game(agent_vision=True, fps=60)
-
-    d = {"PLAYER_FLAP_ACC": -9,
-         "PLAYER_ACC_Y": 1,
-         "pipes_are_random": True}
-
-    dqnAgent.update_env(d)
-
-    dqnAgent.show_game(agent_vision=True, fps=60)

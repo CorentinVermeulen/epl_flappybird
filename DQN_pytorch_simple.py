@@ -19,14 +19,9 @@ from gym.wrappers import FrameStack
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
-from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
+from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 from MetricLogger import MetricLogger
 
-env = FlappyBirdEnv()
-env.reset()
-next_state, reward, done, info = env.step(action=0)
-print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
 
 # Process env observation
 class SkipFrame(gym.Wrapper):
@@ -84,20 +79,20 @@ class ResizeObservation(gym.ObservationWrapper):
 
 
 # Apply Wrappers to environment
+env = FlappyBirdEnv()
 env = SkipFrame(env, skip=4)
-env = GrayScaleObservation(env)
-env = ResizeObservation(env, shape=84)
-
+#env = GrayScaleObservation(env)
+#env = ResizeObservation(env, shape=84)
 env = FrameStack(env, num_stack=4)
 
 env.reset()
 next_state, reward, done, info = env.step(action=0)
-print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
 
 # Agent
-
-print(torch.backends.mps.is_available())
-
+print("Env step function output:")
+print(f"obs shape: {next_state.shape},reward: {reward},done: {done},info: {info}")
+print("MPS used:", torch.backends.mps.is_available())
+print("\nTraining...")
 
 class Bird:
     def __init__(self, state_dim, action_dim, save_dir):
@@ -112,23 +107,23 @@ class Bird:
         self.net = self.net.to(device=self.device)
 
         self.exploration_rate = 1
-        self.exploration_rate_decay = 0.9995 #0.99999975
-        self.exploration_rate_min = 0.1
+        self.exploration_rate_decay = 0.99995 #0.99999975
+        self.exploration_rate_min = 0.01
         self.curr_step = 0
 
         self.save_every = 5e5  # no. of experiences between saving Mario Net
 
-        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
-        self.batch_size = 256
+        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100_000, device=torch.device("cpu")))
+        self.batch_size = 512
 
         self.gamma = 0.9
 
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.loss_fn = torch.nn.SmoothL1Loss()
 
-        self.burnin = 1e3  # min. experiences before training (1e4)
+        self.burnin = 1e4  # min. experiences before training (1e4)
         self.learn_every = 3  # no. of experiences between updates to Q_online (3)
-        self.sync_every = 1e1 # no. of experiences between Q_target & Q_online sync (1e4)
+        self.sync_every = 1e2 # no. of experiences between Q_target & Q_online sync (1e4)
 
     def act(self, state):
         """
@@ -146,13 +141,16 @@ class Bird:
         # EXPLOIT
         else:
             state = state[0].__array__() if isinstance(state, tuple) else state.__array__()
-            state = torch.tensor(state, device=self.device).unsqueeze(0)
+            state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
 
         # decrease exploration_rate
-        self.exploration_rate *= self.exploration_rate_decay
-        self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
+        if self.exploration_rate - self.exploration_rate_min > 1e-4:
+            self.exploration_rate *= self.exploration_rate_decay
+            self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
+        else:
+            self.exploration_rate = self.exploration_rate_min
 
         # increment step
         self.curr_step += 1
@@ -260,12 +258,7 @@ class FlappyNet(nn.Module):
 
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        c, h, w = input_dim
-
-        if h != 84:
-            raise ValueError(f"Expecting input height: 84, got: {h}")
-        if w != 84:
-            raise ValueError(f"Expecting input width: 84, got: {w}")
+        c , o = input_dim
 
         self.online = self.__build_cnn(c, output_dim)
 
@@ -284,30 +277,22 @@ class FlappyNet(nn.Module):
 
     def __build_cnn(self, c, output_dim):
         return nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
-            nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(3136, 512),
-            nn.ReLU(),
-            nn.Linear(512, output_dim),
+            nn.Linear(4*9, output_dim),
         )
 
-
-
-save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir = Path("CheckpointsSimple") / datetime.datetime.now().strftime("%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
 
-bird = Bird(state_dim=(4, 84, 84), action_dim=env.action_space.n, save_dir=save_dir)
+bird = Bird(state_dim=(4, 9), action_dim=env.action_space.n, save_dir=save_dir)
 
 logger = MetricLogger(save_dir)
 
-episodes = 20000
+episodes = 10000
 scores = []
 durations = []
+n_exploring = 0
+n_full_memory = 0
 for e in range(episodes):
 
     state = env.reset()
@@ -331,6 +316,13 @@ for e in range(episodes):
         # Update state
         state = next_state
 
+        if bird.exploration_rate == bird.exploration_rate_min and n_exploring==0:
+            logger.n_exploring = e
+            n_exploring = e
+
+        if bird.curr_step == 100_000:
+            logger.n_full_memory = e
+
         # Check if end of game
         if done or info.get("WIN", False):
             scores.append(info["score"])
@@ -339,9 +331,12 @@ for e in range(episodes):
 
     logger.log_episode(info["score"], t+1 , total_loss, bird.curr_step, bird.exploration_rate)
 
-    if (e % 10 == 0) or (e == episodes - 1):
-        print(f"\rEpisode: {e} - Step: {bird.curr_step} - max_score: {np.max(scores)} - max_duration: {np.max(durations)} - epsilon: {bird.exploration_rate}", end="")
+    if e > 2:
+        if (e % 10 == 0) or (e == episodes - 1):
+            print(f"\rEpisode: {e} - Step: {bird.curr_step} - max_score: {np.max(scores)} - max_duration: {np.max(durations)} - epsilon: {bird.exploration_rate}", end="")
 
-    if (e%100==0)or (e == episodes - 1):
-        logger.record()
-        time.sleep(1)
+        if (e%100==0) or (e == episodes - 1):
+            logger.record()
+            time.sleep(1)
+
+

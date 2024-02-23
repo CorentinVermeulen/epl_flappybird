@@ -47,23 +47,28 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, n_observations, n_actions, sizes=[64, 128, 256, 256], name=None):
+    def __init__(self, n_observations, n_actions, sizes=[1,2,3,4], name=None):
         self.name = name
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, sizes[0])
-        self.layer2 = nn.Linear(sizes[0], sizes[1])
-        self.layer3 = nn.Linear(sizes[1], sizes[2])
-        self.layer4 = nn.Linear(sizes[2], sizes[3])
-        self.output = nn.Linear(sizes[3], n_actions)
+
+        self.layers = nn.Sequential(
+            nn.Linear(n_observations, sizes[0]),
+            nn.ReLU(),
+            nn.Linear(sizes[0], sizes[1]),
+            nn.ReLU(),
+            nn.Linear(sizes[1], sizes[2]),
+            nn.ReLU(),
+            nn.Linear(sizes[2], sizes[3]),
+            nn.ReLU(),
+            nn.Linear(sizes[3], n_actions)
+        )
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[nothing0exp,jump0exp]...]).
     def forward(self, x):
-        x = F.relu6(self.layer1(x))
-        x = F.relu6(self.layer2(x))
-        x = F.relu6(self.layer3(x))
-        x = F.relu6(self.layer4(x))
-        return self.output(x)
+        x = self.layers(x)
+        return x
+
 
     def log_weights(self, writer, epoch):
         for name, param in self.named_parameters():
@@ -198,7 +203,7 @@ class DQNAgent_simple():
     def _save_agent(self):
         name = self.training_path + "/policy_net"
         torch.save(self.policy_net.state_dict(), name + '.pt')
-        self.memory.save(name + '_memory')
+        #self.memory.save(name + '_memory')
 
     def _make_plot(self, scores, durations,losses, n_to_full_memory=None, n_exploring=None):
         def running_mean(x, N):
@@ -222,15 +227,14 @@ class DQNAgent_simple():
         plt.vlines(n_to_full_memory, 0, max(durations), colors='r', linestyles='dashed', label='Memory full')
         plt.vlines(n_exploring, 0, max(durations), colors='b', linestyles='dashed', label='End exploration')
         plt.title(f"Durations (mean: {np.mean(durations):.2f})")
-        plt.xlabel('Epoch')
 
         plt.subplot(3, 1, 3)
         plt.plot(losses, alpha=0.5)
         plt.plot(running_mean(losses, N*100), 'g')
         plt.vlines(n_to_full_memory, 0, max(losses), colors='r', linestyles='dashed', label='Memory full')
         plt.vlines(n_exploring, 0, max(losses), colors='b', linestyles='dashed', label='End exploration')
-        plt.title(f"Losses")
-        plt.xlabel('Global step')
+        plt.title(f"Avg losses")
+        plt.xlabel('Game played')
 
         plt.legend()
 
@@ -245,7 +249,7 @@ class DQNAgent_simple():
             self.training_path = self.create_training_path()
 
         self.writer = SummaryWriter(self.training_path)
-
+        self.logger = MetricLogger(self.training_path)
         best_score = 0
         best_duration = 0
         scores = []
@@ -260,7 +264,8 @@ class DQNAgent_simple():
             episode_reward = 0
             state = self.env.reset()
             state = self._process_state(state)
-
+            total_loss = 0
+            n_loss = 0
             for t in count():
                 action = self._select_action(state)
                 observation, reward, done, info = self.env.step(action.item())
@@ -278,7 +283,8 @@ class DQNAgent_simple():
                 state = next_state
                 loss_val = self._optimize_model()
                 if loss_val:
-                    losses.append(loss_val)
+                    total_loss += loss_val
+                    n_loss +=1
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 if self.step_done % self.UPDATE_TARGETNET_RATE == 0:
@@ -292,6 +298,7 @@ class DQNAgent_simple():
                 if done:
                     train_score = self.env._game.score
                     scores.append(train_score)
+                    losses.append(total_loss/(n_loss) if n_loss >0 else 0)
                     durations.append(t + 1)
                     dic = {'memory_size': len(self.memory),
                            'train_score': train_score,
@@ -299,6 +306,7 @@ class DQNAgent_simple():
                            'duration': t + 1,
                            }
                     self._write_stats(i_episode, **dic)
+                    self.logger.log_episode(train_score, t + 1, total_loss/(n_loss) if n_loss >0 else 0, self.step_done, self.eps_threshold)
 
                     best_score = max(train_score, best_score)
 
@@ -319,6 +327,8 @@ class DQNAgent_simple():
             if self.env._game.score >= 30 and n_to_30 == 0:
                 n_to_30 = i_episode
                 #break
+            if i_episode % 100 == 0:
+                self.logger.record()
 
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
@@ -359,13 +369,13 @@ class DQNAgent_simple():
                     next_state = self._process_state(observation)
                 state = next_state
 
-    def show_game(self, agent_vision=False, fps=60):
+    def show_game(self, agent_vision=False, fps=60, stop_at=None):
         if agent_vision:
             self.env.set_custom_render()
 
         sleep_time = 1 / fps
 
-        total_reward = torch.tensor([0])
+        total_reward = 0
         state = self.env.reset()
         state = self._process_state(state)
         for t in count():
@@ -379,7 +389,6 @@ class DQNAgent_simple():
             self.env.render(stats=stats)
             time.sleep(sleep_time)
 
-            reward = torch.tensor([reward])
             total_reward += reward
             done = terminated
 
@@ -390,9 +399,12 @@ class DQNAgent_simple():
 
             # Move to the next state
             state = next_state
-
+            if stop_at:
+                if info['score'] >= stop_at:
+                    info['QUIT'] = True
+                    done = True
             if done:
-                print(f"score: {self.env._game.score}, total reward: {total_reward.item()}.\nInfo= {info}")
+                print(f"score: {self.env._game.score}, total reward: {total_reward}.\nInfo= {info}")
                 break
         time.sleep(1)
 

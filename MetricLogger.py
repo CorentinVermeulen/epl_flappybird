@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-
+from pathlib import Path
 
 def running_mean(x, N):
     cumsum = np.cumsum(np.insert(x, 0, 0))
@@ -12,7 +12,7 @@ def running_mean(x, N):
 
 class MetricLogger:
     def __init__(self, save_dir):
-        self.save_log = save_dir / "log"
+        #self.save_log = save_dir / "log"
         # with open(self.save_log, "w") as f:
         #     f.write(
         #         f"{'Episode':>8}"
@@ -23,14 +23,16 @@ class MetricLogger:
         #         f"{'Loss':>15}"
         #
         #     )
+        if type(save_dir) == str:
+            save_dir = Path(save_dir)
         self.ep_scores_plot = save_dir / "score_plot.jpg"
         self.ep_durations_plot = save_dir / "duration_plot.jpg"
-        self.ep_losses_plot = save_dir / "loss.jpg"
+        self.ep_avg_losses_plot = save_dir / "loss.jpg"
 
         # History metrics
         self.ep_scores = []
         self.ep_durations = []
-        self.ep_losses = []
+        self.ep_avg_losses = []
         self.ep_steps = []
         self.ep_epsilons = []
 
@@ -39,11 +41,13 @@ class MetricLogger:
 
         self.n_to_full_memory = None
         self.n_exploring = None
+
+        plt.figure(figsize=(10, 5))
     def log_episode(self, score, duration, loss, step, epsilon):
         "Mark end of episode"
         self.ep_scores.append(score)
         self.ep_durations.append(duration)
-        self.ep_losses.append(loss)
+        self.ep_avg_losses.append(loss)
         self.ep_steps.append(step)
         self.ep_epsilons.append(epsilon)
 
@@ -60,22 +64,46 @@ class MetricLogger:
         #         f"{time_since_last_record:15.3f}\n"
         #     )
 
-        for metric in ["ep_scores", "ep_durations", "ep_losses"]:
+        for metric in ["ep_scores", "ep_durations", "ep_avg_losses"]:
             self._make_plot(getattr(self, metric), metric, 50, getattr(self, f"{metric}_plot"))
+            #self._make_plot2(getattr(self, metric), metric, 50, getattr(self, f"{metric}_plot"), self.ep_epsilons, "Epsilon")
             plt.savefig(getattr(self, f"{metric}_plot"))
 
     def _make_plot(self, values, name, N, savepath):
         plt.clf()
 
-        plt.plot(values, alpha=0.5)
-        plt.plot(running_mean(values, N), 'g', label="Moving Average")
+        plt.plot(values, alpha=0.5, label="data")
+        if len(values) > 100:
+            plt.plot(running_mean(values, N), 'g', label="Moving Average")
 
         if self.n_exploring:
             plt.vlines(self.n_exploring, 0, max(values), colors='b', linestyles='dashed', label='End exploration')
         if self.n_to_full_memory:
             plt.vlines(self.n_to_full_memory, 0, max(values), colors='r', linestyles='dashed', label='Memory full')
 
-        plt.title(f"{name} (max: {np.max(values)} - mean: {np.mean(values):.2f})")
+        plt.title(f"max: {np.max(values)} - mean: {np.mean(values):.2f}")
+        plt.xlabel('games_played')
+        plt.ylabel(name)
         plt.legend()
+        plt.tight_layout()
+        plt.savefig(savepath)
+
+    def _make_plot2(self,values, name, N, savepath, values2=None, name2=None):
+        plt.clf()
+        fig, ax1 = plt.subplots()
+        x = np.arange(len(values))
+        ax1.set_xlabel('episodes')
+
+        ax1.plot(x, values, 'g-', alpha=0.5)
+        ax1.plot(x, running_mean(values, N), 'g', label="Moving Average")
+        ax1.set_ylabel(name, color='g')
+
+        if values2:
+            ax2 = ax1.twinx()
+            ax2.plot(x, values2, 'r-', alpha=0.7)
+            ax2.set_ylabel(name2, color='r')
+
+        plt.title(f"{name} (max: {np.max(values)} - mean: {np.mean(values):.2f})")
+        #plt.legend()
         plt.tight_layout()
         plt.savefig(savepath)
