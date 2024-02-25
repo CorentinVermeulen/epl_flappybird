@@ -93,8 +93,9 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
         done = not alive
 
         info = {"score": self._game.score}
-        if self._game.score == 50:
+        if self._game.score == 35:
             info["WIN"] = True
+            reward += 100
 
         try:
             for event in pygame.event.get():
@@ -172,7 +173,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
             for name in self.obs_var:
                 res.append(self.dict_obs[name])
 
-        return np.array(res)
+        return np.array(res, dtype=np.float32)
 
     def set_custom_render(self):
         self._renderer = CustomBirdRenderer(screen_size=self._screen_size,
@@ -198,7 +199,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
             self._renderer.draw_surface(show_score=True, stats=stats, obs=obs)
 
         else:
-            self._renderer.draw_surface(show_score=True, stats=stats)
+            self._renderer.draw_surface(show_score=True)
 
         self._renderer.update_display()
 
