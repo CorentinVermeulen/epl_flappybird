@@ -9,6 +9,16 @@ def running_mean(x, N):
     prefix = np.repeat(np.nan, N - 1)
     return np.concatenate((prefix, out))
 
+def log_df(df, name, scores, durations, end_dic, test_dic, t):
+    df.loc[len(df)] = {'Name': name,
+                       'n_to_30': end_dic['n_to_30'],
+                       'mean_duration': np.mean(durations),
+                       'max_score': max(scores),
+                       'test_score': test_dic['score'],
+                       'test_duration': test_dic['duration'],
+                       'total_time': time.perf_counter() - t
+                       }
+
 
 class MetricLogger:
     def __init__(self, save_dir):

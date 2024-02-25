@@ -4,15 +4,6 @@ import numpy as np
 from DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 
-def log_df(df, name, scores, durations, end_dic, test_dic, t):
-    df.loc[len(df)] = {'Name': name,
-                       'n_to_30': end_dic['n_to_30'],
-                       'mean_duration': np.mean(durations),
-                       'max_score': max(scores),
-                       'test_score': test_dic['score'],
-                       'test_duration': test_dic['duration'],
-                       'total_time': time.perf_counter() - t
-                       }
 df = pd.DataFrame( columns=['Name', 'n_to_30', 'mean_duration', 'max_score', 'test_score', 'test_duration', 'total_time'])
 
 
@@ -39,24 +30,4 @@ test_dic = dqnAgent.test()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# ti = time.perf_counter()
-# dqnAgent.reset()
-# hparams = {"EPOCHS": 2000, "BATCH_SIZE": 256, "EPS_DECAY": 8000}
-# dqnAgent.set_hyperparameters(hparams)
-# scores, durations, end_dic = dqnAgent.train()
-# test_dic = dqnAgent.test()
-# log_df(df, str(hparams), scores, durations, end_dic, test_dic, ti)
-# df.to_csv(f"{root}Batch_size_exploration.csv")
 

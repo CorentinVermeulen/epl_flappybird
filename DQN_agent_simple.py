@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import \
     SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
-from MetricLogger import MetricLogger
+from utils import MetricLogger
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 

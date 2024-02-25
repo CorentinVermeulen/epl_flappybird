@@ -20,7 +20,7 @@ from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
 from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
-from MetricLogger import MetricLogger
+from utils import MetricLogger
 
 
 # Process env observation

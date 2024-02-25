@@ -3,31 +3,7 @@ import numpy as np
 import pandas as pd
 from DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
-
-"""
-PLAN:
-
-- Learn with default parameters
-    - Train until score >= 30
-        - Save nbr of epochs to reach >= 30
-    - Save model
-    - Test model
-- Change parameter
-    - Retrain
-        - Save nbr of epochs to reach >= 30
-    - Test model
-"""
-
-def log_df(df, name, scores, durations, end_dic, test_dic, t):
-    df.loc[len(df)] = {'Name': name,
-                       'n_to_30': end_dic['n_to_30'],
-                       'mean_duration': np.mean(durations),
-                       'max_score': max(scores),
-                       'test_score': test_dic['score'],
-                       'test_duration': test_dic['duration'],
-                       'total_time': time.perf_counter() - t
-                       }
-
+from utils import log_df
 
 env = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
