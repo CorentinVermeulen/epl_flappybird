@@ -1,9 +1,8 @@
 import time
-import numpy as np
 import pandas as pd
-from DQN_agent_simple import DQNAgent_simple
+from repo.agents.DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
-from utils import log_df
+from repo.agents.utils import log_df
 
 env = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']

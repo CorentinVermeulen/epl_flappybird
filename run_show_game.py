@@ -1,4 +1,4 @@
-from DQN_agent_simple import DQNAgent_simple
+from repo.agents.DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 
 env = FlappyBirdEnv()

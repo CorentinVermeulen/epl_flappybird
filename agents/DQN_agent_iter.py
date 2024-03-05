@@ -8,11 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import \
     SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
-from utils import MetricLogger
+from repo.agents.utils import MetricLogger
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
@@ -124,11 +123,11 @@ class DQNAgent_simple():
         self.LR = hyperparameters.get('LR', 1e-4)  # the learning rate of the ``AdamW`` optimizer
 
         self.MEMORY_SIZE = hyperparameters.get('MEMORY_SIZE', 100000)
-        self.GAMMA = hyperparameters.get('GAMMA', 0.99)  # the discount factor as mentioned in the previous section
+        self.GAMMA = hyperparameters.get('GAMMA', 0.95)  # the discount factor as mentioned in the previous section
         self.EPS_START = hyperparameters.get('EPS_STAR', 0.9)  # the starting value of epsilon
-        self.EPS_END = hyperparameters.get('EPS_END', 0.01)  # the final value of epsilon
+        self.EPS_END = hyperparameters.get('EPS_END', 0.001)  # the final value of epsilon
         self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
-        self.TAU = hyperparameters.get('TAU', 0.005)  # the update rate of the target network
+        self.TAU = hyperparameters.get('TAU', 0.01)  # the update rate of the target network
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
         self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 3)
 
@@ -191,6 +190,13 @@ class DQNAgent_simple():
         self.optimizer.step()
         return loss_val
 
+
+    def _forward_state(self, state):
+        with torch.no_grad():
+            q_policy =  self.policy_net(state).max(1)[1].view(1, 1)
+            q_target = self.target_net(state).max(1)[1].view(1, 1)
+        return q_policy, q_target
+
     def _log_agent(self, **kwargs):
         with open(self.training_path + "/param_log.txt", 'w') as f:
             for k, v in kwargs.items():
@@ -205,7 +211,7 @@ class DQNAgent_simple():
         torch.save(self.policy_net.state_dict(), name + '.pt')
         #self.memory.save(name + '_memory')
 
-    def _make_plot(self, scores, durations,losses, n_to_full_memory=None, n_exploring=None):
+    def _make_plot(self, scores, durations, q_policy, q_target, n_to_full_memory=None, n_exploring=None):
         def running_mean(x, N):
             cumsum = np.cumsum(np.insert(x, 0, 0))
             out = (cumsum[N:] - cumsum[:-N]) / N
@@ -220,6 +226,7 @@ class DQNAgent_simple():
         plt.vlines(n_to_full_memory, 0, max(scores), colors='r', linestyles='dashed', label='Memory full')
         plt.vlines(n_exploring, 0, max(scores), colors='b', linestyles='dashed', label='End exploration')
         plt.title(f"Scores (max: {np.max(scores)})")
+        plt.legend()
 
         plt.subplot(3, 1, 2)
         plt.plot(durations, alpha=0.5)
@@ -227,13 +234,14 @@ class DQNAgent_simple():
         plt.vlines(n_to_full_memory, 0, max(durations), colors='r', linestyles='dashed', label='Memory full')
         plt.vlines(n_exploring, 0, max(durations), colors='b', linestyles='dashed', label='End exploration')
         plt.title(f"Durations (mean: {np.mean(durations):.2f})")
+        plt.legend()
 
         plt.subplot(3, 1, 3)
-        plt.plot(losses, alpha=0.5)
-        plt.plot(running_mean(losses, N*100), 'g')
-        plt.vlines(n_to_full_memory, 0, max(losses), colors='r', linestyles='dashed', label='Memory full')
-        plt.vlines(n_exploring, 0, max(losses), colors='b', linestyles='dashed', label='End exploration')
-        plt.title(f"Avg losses")
+        plt.plot(q_policy, alpha=0.5, label='Q-policy')
+        plt.plot(running_mean(q_policy, N*100), 'g', label='Moving Average Q-policy')
+        plt.plot(q_target, alpha=0.5, label='Q-target')
+        plt.plot(running_mean(q_target, N * 100), 'g', label='Moving Average Q-target')
+        plt.title(f"Q-Policy and Q-target")
         plt.xlabel('Game played')
 
         plt.legend()
@@ -255,8 +263,10 @@ class DQNAgent_simple():
         scores = []
         durations = []
         losses = []
+        q_policy = []
+        q_target = []
 
-        n_to_30 = 0
+        n_to_max = 0
         n_to_full_memory = 0
         n_exploring = 0
 
@@ -268,6 +278,11 @@ class DQNAgent_simple():
             n_loss = 0
             for t in count():
                 action = self._select_action(state)
+
+                q_p, q_t = self._forward_state(state)
+                q_policy.append(q_p.item())
+                q_target.append(q_t.item())
+
                 observation, reward, done, info = self.env.step(action.item())
                 observation = self._process_state(observation)
                 reward = torch.tensor([reward])
@@ -281,10 +296,10 @@ class DQNAgent_simple():
                     n_exploring = i_episode
 
                 state = next_state
-                loss_val = self._optimize_model()
-                if loss_val:
-                    total_loss += loss_val
-                    n_loss +=1
+                # loss_val = self._optimize_model()
+                # if loss_val:
+                #     total_loss += loss_val
+                #     n_loss +=1
 
                 # Soft update of the target network's weights (θ′ ← τ θ + (1 −τ )θ′)
                 if self.step_done % self.UPDATE_TARGETNET_RATE == 0:
@@ -296,6 +311,12 @@ class DQNAgent_simple():
                     self.target_net.load_state_dict(target_state_dict)
 
                 if done:
+
+                    loss_val = self._optimize_model()
+                    if loss_val:
+                        total_loss += loss_val
+                        n_loss +=1
+
                     train_score = self.env._game.score
                     scores.append(train_score)
                     losses.append(total_loss/(n_loss) if n_loss >0 else 0)
@@ -306,7 +327,11 @@ class DQNAgent_simple():
                            'duration': t + 1,
                            }
                     self._write_stats(i_episode, **dic)
-                    self.logger.log_episode(train_score, t + 1, total_loss/(n_loss) if n_loss >0 else 0, self.step_done, self.eps_threshold)
+                    self.logger.log_episode(train_score,
+                                            t + 1,
+                                            total_loss/(n_loss) if n_loss >0 else 0,
+                                            self.step_done,
+                                            self.eps_threshold)
 
                     best_score = max(train_score, best_score)
 
@@ -324,8 +349,8 @@ class DQNAgent_simple():
 
                     break
             # Stop when score is above 30
-            if self.env._game.score >= 30 and n_to_30 == 0:
-                n_to_30 = i_episode
+            if self.env._game.score >= 20 and n_to_max == 0:
+                n_to_max = i_episode
                 #break
             if i_episode % 100 == 0:
                 self.logger.record()
@@ -333,12 +358,13 @@ class DQNAgent_simple():
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
-        end_dic['n_to_30'] = n_to_30
+        end_dic['n_to_max'] = n_to_max
         end_dic['n_to_full_memory'] = n_to_full_memory
         end_dic['n_exploring'] = n_exploring
 
+
         self._log_agent(**end_dic)
-        self._make_plot(scores, durations,losses, n_to_full_memory, n_exploring)
+        self._make_plot(scores, durations,q_policy, q_target, n_to_full_memory, n_exploring)
         self.writer.close()
         print(" ")
         return scores, durations, end_dic

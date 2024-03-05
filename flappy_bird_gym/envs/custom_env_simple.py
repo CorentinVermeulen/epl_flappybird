@@ -47,6 +47,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
                f"\tEnv obs variables: {self.obs_var}\n"
                f"\tEnv obs values: {self.reset()}\n"
                f"\tReward range: {self.rewards}\n"
+               f"\tGame parameters: {self.game_params}\n"
                f")")
         return str
 

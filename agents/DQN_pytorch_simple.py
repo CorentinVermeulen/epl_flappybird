@@ -3,13 +3,10 @@ from itertools import count
 import torch
 from torch import nn
 from torchvision import transforms as T
-from PIL import Image
 import numpy as np
-import time, datetime
-import matplotlib.pyplot as plt
+import time
 from pathlib import Path
-from collections import deque
-import random, datetime, os
+import datetime
 
 # Gym is an OpenAI toolkit for RL
 import gym
@@ -19,8 +16,8 @@ from gym.wrappers import FrameStack
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
-from utils import MetricLogger
+from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
+from repo.agents.utils import MetricLogger
 
 
 # Process env observation
@@ -81,8 +78,8 @@ class ResizeObservation(gym.ObservationWrapper):
 # Apply Wrappers to environment
 env = FlappyBirdEnv()
 env = SkipFrame(env, skip=4)
-env = GrayScaleObservation(env)
-env = ResizeObservation(env, shape=84)
+#env = GrayScaleObservation(env)
+#env = ResizeObservation(env, shape=84)
 env = FrameStack(env, num_stack=4)
 
 env.reset()
@@ -108,7 +105,7 @@ class Bird:
 
         self.exploration_rate = 1
         self.exploration_rate_decay = 0.99995 #0.99999975
-        self.exploration_rate_min = 0.1
+        self.exploration_rate_min = 0.01
         self.curr_step = 0
 
         self.save_every = 5e5  # no. of experiences between saving Mario Net
@@ -141,7 +138,7 @@ class Bird:
         # EXPLOIT
         else:
             state = state[0].__array__() if isinstance(state, tuple) else state.__array__()
-            state = torch.tensor(state, device=self.device).unsqueeze(0)
+            state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
 
@@ -258,12 +255,7 @@ class FlappyNet(nn.Module):
 
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        c, h, w = input_dim
-
-        if h != 84:
-            raise ValueError(f"Expecting input height: 84, got: {h}")
-        if w != 84:
-            raise ValueError(f"Expecting input width: 84, got: {w}")
+        c , o = input_dim
 
         self.online = self.__build_cnn(c, output_dim)
 
@@ -282,28 +274,18 @@ class FlappyNet(nn.Module):
 
     def __build_cnn(self, c, output_dim):
         return nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
-            nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(3136, 512),
-            nn.ReLU(),
-            nn.Linear(512, output_dim),
+            nn.Linear(4*9, output_dim),
         )
 
-
-
-save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir = Path("../CheckpointsSimple") / datetime.datetime.now().strftime("%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
 
-bird = Bird(state_dim=(4, 84, 84), action_dim=env.action_space.n, save_dir=save_dir)
+bird = Bird(state_dim=(4, 9), action_dim=env.action_space.n, save_dir=save_dir)
 
 logger = MetricLogger(save_dir)
 
-episodes = 20000
+episodes = 10000
 scores = []
 durations = []
 n_exploring = 0
@@ -353,3 +335,5 @@ for e in range(episodes):
         if (e%100==0) or (e == episodes - 1):
             logger.record()
             time.sleep(1)
+
+
