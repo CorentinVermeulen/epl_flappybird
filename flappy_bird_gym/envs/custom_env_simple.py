@@ -164,6 +164,7 @@ class CustomEnvSimple(FlappyBirdEnvSimple):
             'v_dist': v_dist,
             'h_dist': h_dist,
             'player_vel_y': self._game.player_vel_y,
+            'gravity': self._game.gravity,
         }
 
         res = []

@@ -33,7 +33,7 @@ import random
 from enum import IntEnum
 from itertools import cycle
 from typing import Dict, Tuple, Union
-
+from math import sin
 import pygame
 
 ############################ Speed and Acceleration ############################
@@ -134,16 +134,29 @@ class FlappyBirdLogic:
         self.base_y = self._screen_height * 0.79
         self._base_shift = BASE_WIDTH - BACKGROUND_WIDTH
 
-        self.score = 0
-        #self._pipe_gap_size = pipe_gap_size
-        self._pipe_gap_size = PIPE_GAP_SIZE
-        self._defined_pipes = defined_pipes
-        self._pipe_nbr = 0
+        ######## Params to update ############################
+        self.PIPE_VEL_X = PIPE_VEL_X  # Pipe velocity
+
+        # Jump force
+        self.PLAYER_FLAP_ACC = PLAYER_FLAP_ACC
+        self.PLAYER_FLAP_ACC_VARIANCE = 0
+        # Gravity
+        self.gravity = PLAYER_ACC_Y
+        self.PLAYER_ACC_Y = PLAYER_ACC_Y
+        self.GRAVITY_SINUS_AMPLITUDE = 0
+        self.GRAVITY_SINUS_PERIOD = 50
+
+        # Pipe V position
         self.pipes_are_random = False
+        self._defined_pipes = defined_pipes
+
+        ######################################################
+        self.score = 0
+        self._pipe_gap_size = PIPE_GAP_SIZE
+        self._pipe_nbr = 0
 
         # Generate 2 new pipes to add to upper_pipes and lower_pipes lists
         new_pipe1 = self._get_new_pipe()
-
 
         # List of upper pipes:
         self.upper_pipes = [
@@ -170,11 +183,11 @@ class FlappyBirdLogic:
         self.player_idx = 0
         self._player_idx_gen = cycle([0, 1, 2, 1])
         self._loop_iter = 0
+        self._frame = 0
 
-        # Params to update
-        self.PLAYER_FLAP_ACC =  PLAYER_FLAP_ACC # Jump force
-        self.PIPE_VEL_X = PIPE_VEL_X  # Pipe velocity
-        self.PLAYER_ACC_Y = PLAYER_ACC_Y  # Gravity
+    def _update_gravity(self):
+        self.gravity = self.PLAYER_ACC_Y + self.GRAVITY_SINUS_AMPLITUDE * sin(self._frame / self.GRAVITY_SINUS_PERIOD)
+        return self.gravity
 
     def update_params(self, params) -> None:
         """ Updates the game's parameters.
@@ -245,7 +258,7 @@ class FlappyBirdLogic:
         self.sound_cache = None
         if action == FlappyBirdLogic.Actions.FLAP:
             if self.player_y > -2 * PLAYER_HEIGHT:
-                self.player_vel_y = self.PLAYER_FLAP_ACC
+                self.player_vel_y = self.PLAYER_FLAP_ACC + random.uniform(-1, 1) * self.PLAYER_FLAP_ACC_VARIANCE
                 self._player_flapped = True
                 self.sound_cache = "wing"
 
@@ -279,7 +292,7 @@ class FlappyBirdLogic:
 
         # player's movement
         if self.player_vel_y < PLAYER_MAX_VEL_Y and not self._player_flapped:
-            self.player_vel_y += self.PLAYER_ACC_Y
+            self.player_vel_y += self._update_gravity()
 
         if self._player_flapped:
             self._player_flapped = False
@@ -308,4 +321,6 @@ class FlappyBirdLogic:
             self.upper_pipes.pop(0)
             self.lower_pipes.pop(0)
 
+        # Frame counter
+        self._frame +=1
         return True

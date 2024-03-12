@@ -11,14 +11,14 @@ hparams = {"layer_sizes": [256, 512, 512, 512],
            "EPOCHS": 1500,
            "BATCH_SIZE": 512,
            "EPS_DECAY": 2000}
-# Normal game
-# agent = DQNAgent_simple(env, hparams, root_path="runs/JumpForce/")
-# agent.update_env({"PLAYER_FLAP_ACC": -9, "PLAYER_ACC_Y": 1})
-# agent.train()
+# Easier game Not random
+agent = DQNAgent_simple(env, hparams, root_path="runs/rand_pregame/")
+agent.update_env({"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random":False})
+agent.train(name="vpos_not_random")
 
-# Easier game
-agent = DQNAgent_simple(env, hparams, root_path="runs/Iterative/")
+# Easier game random vpos
+agent = DQNAgent_simple(env, hparams, root_path="runs/rand_pregame/")
 agent.update_env({"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random":True})
-agent.train()
+agent.train(name="vpos_random")
 
 

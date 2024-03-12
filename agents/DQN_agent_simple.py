@@ -131,9 +131,12 @@ class DQNAgent_simple():
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
         self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 3)
 
-    def create_training_path(self):
+    def create_training_path(self, name=None):
         t = time.strftime("%d%m-%H%M%S")
-        return self.root_path + f"{self.type}_{t}"
+        postfix = f"{self.type}_{t}"
+        if name:
+            postfix = name+"_"+postfix
+        return self.root_path + postfix
 
     def _process_state(self, state):
         ### TO CHNAGE FOR RGB ###
@@ -190,8 +193,15 @@ class DQNAgent_simple():
         self.optimizer.step()
         return loss_val
 
-
     def _forward_state(self, state):
+        """
+        Forward the state through the policy and target net
+        Args:
+            state: torch.tensor
+
+        Returns: Q values for the policy and target net
+
+        """
         with torch.no_grad():
             q_policy =  self.policy_net(state).max(1)[1].view(1, 1)
             q_target = self.target_net(state).max(1)[1].view(1, 1)
@@ -203,6 +213,13 @@ class DQNAgent_simple():
                 f.write(f"{k}: {v}\n")
 
     def _write_stats(self, i_episode, **kwargs):
+        """
+        Save the stats in tensorboard writer
+        Args:
+            i_episode: int
+            **kwargs:  dict with values to store
+
+        """
         for key, value in kwargs.items():
             self.writer.add_scalar(key, value, i_episode)
 
@@ -211,7 +228,7 @@ class DQNAgent_simple():
         torch.save(self.policy_net.state_dict(), name + '.pt')
         #self.memory.save(name + '_memory')
 
-    def _make_plot(self, scores, durations, q_policy, q_target, n_to_full_memory=None, n_exploring=None):
+    def _make_end_plot(self, scores, durations, q_policy, q_target, n_to_full_memory=None, n_exploring=None):
         def running_mean(x, N):
             cumsum = np.cumsum(np.insert(x, 0, 0))
             out = (cumsum[N:] - cumsum[:-N]) / N
@@ -254,7 +271,7 @@ class DQNAgent_simple():
         if retrain_path:
             self.training_path = retrain_path + f"{'_retrain_' + name if name else '_retrain'}"
         else:
-            self.training_path = self.create_training_path()
+            self.training_path = self.create_training_path(name)
 
         self.writer = SummaryWriter(self.training_path)
         self.logger = MetricLogger(self.training_path)
@@ -329,11 +346,11 @@ class DQNAgent_simple():
 
                     best_score = max(train_score, best_score)
 
-                    if t + 1 > best_duration:
+                    if t + 1 >= best_duration:
                         best_duration = t + 1
                         self.policy_net.log_weights(self.writer, i_episode)
 
-                        if train_score > 2:
+                        if train_score > 1:
                             self._save_agent()
 
                     print(f"\r{i_episode + 1}/{self.EPOCHS}"
@@ -342,13 +359,14 @@ class DQNAgent_simple():
                           f"\tEPS:{self.eps_threshold} , mean duration {np.mean(durations):.2f}",end='')
 
                     break
-            # Stop when score is above 30
+            # Stop when score is above 20
             if self.env._game.score >= 20 and n_to_max == 0:
                 n_to_max = i_episode
                 #break
             if i_episode % 100 == 0:
                 self.logger.record()
 
+        self.logger.record()
         end_dic = self.__dict__
         end_dic['best_score'] = best_score
         end_dic['best_duration'] = best_duration
@@ -358,9 +376,9 @@ class DQNAgent_simple():
 
 
         self._log_agent(**end_dic)
-        self._make_plot(scores, durations,q_policy, q_target, n_to_full_memory, n_exploring)
+        self._make_end_plot(scores, durations, q_policy, q_target, n_to_full_memory, n_exploring)
         self.writer.close()
-        print(" ")
+        #print(" ")
         return scores, durations, end_dic
 
     def retrain(self, training_path, name=None, load_network=False, load_memory=False, eps_start=0.01, epochs=1500):
@@ -375,20 +393,28 @@ class DQNAgent_simple():
 
         return self.train(retrain_path=training_path, retrain_epochs=epochs, name=name)
 
-    def test(self):
-        with torch.no_grad():
-            state = self.env.reset()
-            state = self._process_state(state)
-            for t in count():
-                action = self.policy_net(state).max(1)[1].view(1, 1)
-                observation, reward, done, _ = self.env.step(action.item())
-                if done:
-                    next_state = None
-                    return {'score': self.env._game.score, 'duration': t + 1}
-                else:
-                    next_state = self._process_state(observation)
-                state = next_state
-
+    def test(self, n=100):
+        scores = []
+        durations = []
+        prev_rand = self.env._game.pipes_are_random # Save the state of the env
+        self.env.update_params({'pipes_are_random': True})
+        for i in range(n):
+            with torch.no_grad():
+                state = self.env.reset()
+                state = self._process_state(state)
+                for t in count():
+                    action = self.policy_net(state).max(1)[1].view(1, 1)
+                    observation, reward, done, _ = self.env.step(action.item())
+                    if done:
+                        next_state = None
+                        scores.append(self.env._game.score)
+                        durations.append(t + 1)
+                        break
+                    else:
+                        next_state = self._process_state(observation)
+                    state = next_state
+        self.env.update_params({'pipes_are_random': prev_rand}) # put back the env in its original state
+        return scores, durations
     def show_game(self, agent_vision=False, fps=60, stop_at=None):
         if agent_vision:
             self.env.set_custom_render()
