@@ -1,7 +1,7 @@
 from repo.agents.DQN_agent_simple import DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 
-env = FlappyBirdEnv()
+erv = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
 hparams = {"layer_sizes": [256, 256, 256, 256]}
 root = "runs/show_games/"
@@ -12,7 +12,6 @@ agent_vision = False
 dqnAgent = DQNAgent_simple(env, hparams, root_path=root)
 
 dqnAgent.set_nets(training_path)
-
 
 # # Normal game
 # dqnAgent.show_game(agent_vision=agent_vision, fps=60, stop_at=20)

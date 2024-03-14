@@ -3,11 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+
 def running_mean(x, N):
     cumsum = np.cumsum(np.insert(x, 0, 0))
     out = (cumsum[N:] - cumsum[:-N]) / N
     prefix = np.repeat(np.nan, N - 1)
     return np.concatenate((prefix, out))
+
 
 def log_df(df, name, scores, durations, end_dic, test_dic, t):
     df.loc[len(df)] = {'Name': name,
@@ -20,9 +22,42 @@ def log_df(df, name, scores, durations, end_dic, test_dic, t):
                        }
 
 
+def get_nsm(scores, last_tier=False):
+    if last_tier:
+        length = len(scores)
+        tier = length // 3
+        scores = scores[length - tier:]
+    n = np.sum(np.array(scores) == 20)
+    return n
+
+
+def get_dm(durations, last_tier=False):
+    if last_tier:
+        length = len(durations)
+        tier = length // 3
+        scores = durations[length - tier:]
+    dm = np.mean(durations)
+    return dm
+
+
+def get_n_to10sm(scores):
+    cumsum = np.cumsum(np.array(scores) == 20)
+    index = list(cumsum).index(10) if 10 in list(cumsum) else None
+    return index
+
+
+def get_kpi(scores, durations):
+    return {"nsm": get_nsm(scores),
+            "nsm_last": get_nsm(scores, last_tier=True),
+            "dm": get_dm(durations),
+            "dm_last": get_dm(durations, last_tier=True),
+            "n_to_10sm": get_n_to10sm(scores),
+            }
+
+
 class MetricLogger:
     def __init__(self, save_dir):
-        #self.save_log = save_dir / "log"
+        # self.save_log = save_dir / "log"
         # with open(self.save_log, "w") as f:
         #     f.write(
         #         f"{'Episode':>8}"
@@ -53,6 +88,7 @@ class MetricLogger:
         self.n_exploring = None
 
         plt.figure(figsize=(10, 5))
+
     def log_episode(self, score, duration, loss, step, epsilon):
         "Mark end of episode"
         self.ep_scores.append(score)
@@ -76,7 +112,7 @@ class MetricLogger:
 
         for metric in ["ep_scores", "ep_durations", "ep_avg_losses"]:
             self._make_plot(getattr(self, metric), metric, 50, getattr(self, f"{metric}_plot"))
-            #self._make_plot2(getattr(self, metric), metric, 50, getattr(self, f"{metric}_plot"), self.ep_epsilons, "Epsilon")
+            # self._make_plot2(getattr(self, metric), metric, 50, getattr(self, f"{metric}_plot"), self.ep_epsilons, "Epsilon")
             plt.savefig(getattr(self, f"{metric}_plot"))
 
     def _make_plot(self, values, name, N, savepath):
@@ -98,7 +134,7 @@ class MetricLogger:
         plt.tight_layout()
         plt.savefig(savepath)
 
-    def _make_plot2(self,values, name, N, savepath, values2=None, name2=None):
+    def _make_plot2(self, values, name, N, savepath, values2=None, name2=None):
         plt.clf()
         fig, ax1 = plt.subplots()
         x = np.arange(len(values))
@@ -114,6 +150,6 @@ class MetricLogger:
             ax2.set_ylabel(name2, color='r')
 
         plt.title(f"{name} (max: {np.max(values)} - mean: {np.mean(values):.2f})")
-        #plt.legend()
+        # plt.legend()
         plt.tight_layout()
         plt.savefig(savepath)
