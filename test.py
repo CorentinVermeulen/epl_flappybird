@@ -18,7 +18,7 @@ hparams = {"layer_sizes": [256, 256, 256, 256],
            "EPS_DECAY": 2000}
 
 # Easy game
-agent = DQNAgent_simple(env, hparams,root_path='TEST')
+agent = DQNAgent_simple(env, hparams,root_path='TEST/')
 agent.update_env({"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random":True})
 agent.train(name="test")
 
