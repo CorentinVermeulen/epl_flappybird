@@ -1,6 +1,3 @@
-import sys
-print(sys.path)
-
 from agents.DQN_agent_ceci import DQNAgent_simple_cuda as DQNAgent_simple
 from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
 
