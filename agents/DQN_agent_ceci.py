@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import \
     SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
-from repo.agents.utils import get_kpi
+from agents.utils import get_kpi
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
