@@ -75,8 +75,8 @@ class DQN(nn.Module):
 
 class DQNAgent_simple_cuda():
     def __init__(self, env, hyperparameters, root_path= "runs/default/"):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("Using device: ", self.device)
+        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device='mps'
         self.env = env
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
@@ -87,6 +87,8 @@ class DQNAgent_simple_cuda():
         self.root_path = root_path
         self.training_path = None
 
+    def print_device(self):
+        print(f"Running on : {self.device} device")
     def reset(self, name='network'):
         # Policy and Target net
         self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name)
@@ -160,7 +162,7 @@ class DQNAgent_simple_cuda():
                 return self.policy_net(state).max(1)[1].view(1, 1)
         # Random Action
         else:
-            return torch.tensor([[self.env.action_space.sample()]], dtype=torch.long)
+            return torch.tensor([[self.env.action_space.sample()]], dtype=torch.long, device=self.device)
 
     def _optimize_model(self):
         if len(self.memory) < self.BATCH_SIZE:
@@ -170,15 +172,13 @@ class DQNAgent_simple_cuda():
         batch = Transition(*zip(*transitions))
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                                 batch.next_state)), dtype=torch.bool, device=self.device)
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None]).to(self.device)
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
+        non_final_next_states = torch.cat([s.to(self.device) for s in batch.next_state if s is not None])
+        state_batch = torch.cat([s.to(self.device) for s in batch.state])
+        action_batch = torch.cat([a.to(self.device) for a in batch.action])
+        reward_batch = torch.cat([b.to(self.device) for b in batch.reward])
 
         # Actual Q(s_t,a)
-        state_action_values = self.policy_net(state_batch).gather(1,
-                                                                  action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
+        state_action_values = self.policy_net(state_batch).gather(1,action_batch)  # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.BATCH_SIZE, device=self.device)
@@ -320,7 +320,8 @@ class DQNAgent_simple_cuda():
                         if train_score > 1:
                             self._save_agent()
 
-                    print(f"\r[{i_episode + 1}/{self.EPOCHS}]"
+                    print(f"\r{name if name else ''} - "
+                          f"[{i_episode + 1}/{self.EPOCHS}]"
                           f"\tD: {t + 1} (D* {best_duration}) "
                           f"\tS: {train_score} (S* {best_score}) "
                           f"\tEPS:{self.eps_threshold} , mean duration {np.mean(durations):.2f}",end='')
