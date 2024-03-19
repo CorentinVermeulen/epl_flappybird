@@ -64,8 +64,7 @@ class Agent():
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
         self.root_path = root_path if root_path else "default/"
-        self.device = 'cpu'
-        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # self.device = 'mps'
         # Set nets and optimizer
         self.qnet = QNetwork(self.n_observations, self.n_actions)
