@@ -60,6 +60,7 @@ class Agent():
         self.env = env
         self.root_path = root_path if root_path else "default/"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        #self.device = 'mps'
         # Set nets and optimizer
         self.qnet = QNetwork(env.observation_space.shape[0], env.action_space.n)
         self.qnet = self.qnet.to(device=self.device)
@@ -169,9 +170,9 @@ class Agent():
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, next_state_batch)), dtype=torch.bool)
         non_final_next_states = torch.cat([s for s in tuple(s.unsqueeze(0) for s in next_state_batch) if s is not None])
         # Compute V(s_{t+1}) for all next states.
-        next_state_values = torch.zeros(self.BATCH_SIZE)
+        next_state_values = torch.zeros(self.BATCH_SIZE, device=self.device)
         with torch.no_grad():
-            next_state_values[non_final_mask] = self.qnet(non_final_next_states, "target").max(1)[0]
+            next_state_values[non_final_mask] = self.qnet(non_final_next_states.to(self.device), "target").max(1)[0]
         # Expected Q(s_t,a)
         return (next_state_values * self.GAMMA) + reward_batch
 
