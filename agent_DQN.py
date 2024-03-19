@@ -4,16 +4,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from itertools import count
+
+import pandas as pd
 import torch
 from torch import nn
-#from torchvision import transforms as T
+# from torchvision import transforms as T
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
-#from collections import deque
-#from gym.wrappers import FrameStack
+# from collections import deque
+# from gym.wrappers import FrameStack
 from agents.utils import running_mean
 
 from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
+
 
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -58,22 +61,25 @@ class QNetwork(nn.Module):
 class Agent():
     def __init__(self, env, hyperparameters={}, root_path=None):
         self.env = env
+        self.n_actions = env.action_space.n  # Get number of actions from gym action space
+        self.n_observations = len(env.reset())  # Get the number of state observations
         self.root_path = root_path if root_path else "default/"
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        #self.device = 'mps'
+        self.device = 'cpu'
+        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.device = 'mps'
         # Set nets and optimizer
-        self.qnet = QNetwork(env.observation_space.shape[0], env.action_space.n)
+        self.qnet = QNetwork(self.n_observations, self.n_actions)
         self.qnet = self.qnet.to(device=self.device)
         self.optimizer = torch.optim.Adam(self.qnet.parameters(), lr=0.00025)
         self.loss_fn = torch.nn.SmoothL1Loss()
 
         # Set hyperparameters
-        self.set_hyperparameters(**hyperparameters)
+        self.set_hyperparameters(hyperparameters)
 
         # Reset
         self.reset()
 
-    def set_hyperparameters(self, **kwargs):
+    def set_hyperparameters(self, hyperparameters):
         self.eps_threshold = 1
         self.EPS_DECAY = 2000
         self.EPS_START = 1
@@ -90,6 +96,12 @@ class Agent():
         self.BURNING = 0  # min. experiences before training
         self.learn_every = 1  # no. of experiences between updates to Q_online
         self.sync_every = 3  # no. of experiences between Q_target & Q_online sync
+
+        for param_name, param_value in hyperparameters.items():
+            if hasattr(self, param_name):
+                setattr(self, param_name, param_value)
+            else:
+                print(f"Warning: Attribute '{param_name}' does not exist in this object.")
 
     def reset(self):
         self.step_done = 0
@@ -191,10 +203,11 @@ class Agent():
             target_state_dict[key] = self.TAU * policy_state_dict[key] + (1 - self.TAU) * target_state_dict[key]
             self.qnet.target.load_state_dict(target_state_dict)
 
-    def save(self):
-        path = self.training_path + f"model_{id}.pt"
-        torch.save(dict(model=self.qnet.state_dict(), eps_threshold=self.eps_threshold), path)
-        print(f"Model saved to {path} at step {self.step_done}")
+    def save(self, name=None):
+        name = "model" if not name else "model_" + name
+        path = self.training_path + f"{name}.chkpt"
+        torch.save(self.qnet.policy.state_dict(), path)
+        # print(f"Model saved to {path} at step {self.step_done}")
 
     def set_training_id(self, name=None):
         id = datetime.datetime.now().strftime("%d%m_%H%M%S")
@@ -203,8 +216,8 @@ class Agent():
         self.training_path = self.root_path + id + '/'
         Path(self.training_path).mkdir(parents=True)
 
-    def train(self):
-        self.set_training_id()
+    def train(self, name=None):
+        self.set_training_id(name)
         best_score = 0
         scores = []
         durations = []
@@ -232,7 +245,10 @@ class Agent():
                     losses.append(total_loss)
                     qs.append(total_qs)
 
-                    best_score = max(best_score, info["score"])
+                    if info["score"] >= best_score:
+                        best_score = info["score"]
+                        if info['score'] > 2:
+                            self.save()
 
                     print(f"\r[{i + 1:^4}/{self.GAMES_TO_PLAY}] d:{t} "
                           f"\tS*: {best_score} "
@@ -243,6 +259,10 @@ class Agent():
                 self.make_plot(durations, losses, qs)
 
         self.make_plot(durations, losses, qs)
+        pd.DataFrame({"scores": scores,
+                      "durations": durations,
+                      "losses": losses,
+                      "qs": qs}).to_csv(self.training_path + "training.csv")
 
     def make_plot(self, durations, losses, qs):
         plt.figure(figsize=(12, 12))
@@ -273,6 +293,14 @@ class Agent():
     def update_env(self, dic):
         self.env.update_params(dic)
 
+
 env = FlappyBirdEnv()
-agent = Agent(env)
-agent.train()
+env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
+
+hparams = {'GAMES_TO_PLAY': 1000}
+for rd in [True, False]:
+    env_params = {"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random": rd}
+    for i in range(10):
+        agent = Agent(env=env, hyperparameters=hparams)
+        agent.update_env(env_params)
+        agent.train(name=f"{rd}_{i}")
