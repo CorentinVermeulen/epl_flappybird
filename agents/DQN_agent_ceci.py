@@ -67,7 +67,6 @@ class DQN(nn.Module):
         x = self.layers(x)
         return x
 
-
     def log_weights(self, writer, epoch):
         for name, param in self.named_parameters():
             writer.add_histogram(name, param, epoch)
@@ -121,7 +120,7 @@ class DQNAgent_simple_cuda():
         self.memory.load(path + "/policy_net_memory.pkl")
 
     def set_hyperparameters(self, hyperparameters):
-        self.EPOCHS = hyperparameters.get('EPOCHS', 2000)
+        self.EPOCHS = hyperparameters.get('EPOCHS', 1000)
         self.BATCH_SIZE = hyperparameters.get('BATCH_SIZE', 256)
         self.LR = hyperparameters.get('LR', 1e-4)  # the learning rate of the ``AdamW`` optimizer
 
@@ -131,7 +130,7 @@ class DQNAgent_simple_cuda():
         self.EPS_END = hyperparameters.get('EPS_END', 0.001)  # the final value of epsilon
         self.EPS_DECAY = hyperparameters.get('EPS_DECAY', 2000)  # higher means a slower decay
         self.TAU = hyperparameters.get('TAU', 0.01)  # the update rate of the target network
-        self.LAYER_SIZES = hyperparameters.get('layer_sizes', [64, 128, 256, 256])
+        self.LAYER_SIZES = hyperparameters.get('layer_sizes', [256, 256, 256, 256])
         self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 3)
 
     def set_training_path(self, retrain_path, name=None):
