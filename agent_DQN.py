@@ -6,11 +6,11 @@ import math
 from itertools import count
 import torch
 from torch import nn
-from torchvision import transforms as T
+#from torchvision import transforms as T
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
-from collections import deque
-from gym.wrappers import FrameStack
+#from collections import deque
+#from gym.wrappers import FrameStack
 from agents.utils import running_mean
 
 from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple as FlappyBirdEnv
