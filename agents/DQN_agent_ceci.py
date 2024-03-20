@@ -244,7 +244,7 @@ class DQNAgent_simple_cuda():
                     break
             if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
                 self._make_end_plot(durations, losses)
-                self._save_results(scores, durations, losses)
+                self._save_results(name, scores, durations, losses)
 
         return scores, durations
 
@@ -275,10 +275,10 @@ class DQNAgent_simple_cuda():
         plt.savefig(self.training_path + f"/plot.png")
         plt.close()
 
-    def _save_results(self, scores, durations, loss):
+    def _save_results(self, name, scores, durations, loss):
        pd.DataFrame({"scores": scores,
                      "durations": durations,
-                     "loss": loss}).to_csv(self.training_path + "/results.csv")
+                     "loss": loss}).to_csv(self.training_path + f"/results_{name}.csv")
 
        end_dic = self.__dict__
        if scores and durations:
