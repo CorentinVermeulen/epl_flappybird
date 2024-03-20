@@ -5,7 +5,7 @@ import pandas as pd
 root = 'TEST/'
 
 hp = {"layer_sizes": [256, 256, 256, 256],
-      "EPOCHS": 1000,
+      "EPOCHS": 750,
       "BATCH_SIZE": 256,
       "EPS_DECAY": 2000}
 
@@ -23,12 +23,11 @@ n_actions = env.action_space.n
 agent = DQNAgent_simple(FlappyBirdEnv(), hp, root_path=root)
 agent.print_device()
 
-for rd in [False, True]:
-    game_conditions = {"PLAYER_FLAP_ACC": -6,
-                  "PLAYER_ACC_Y": 1,
-                  "pipes_are_random": rd}
-
-    for i in range(10):
+for i in range(10):
+    for rd in [False, True]:
+        game_conditions = {"PLAYER_FLAP_ACC": -6,
+                           "PLAYER_ACC_Y": 1,
+                           "pipes_are_random": rd}
         agent = DQNAgent_simple(FlappyBirdEnv(), hp, root_path=root)
         agent.update_env(game_conditions)
         scores, durations = agent.train(name=f"{rd}_{i}")
