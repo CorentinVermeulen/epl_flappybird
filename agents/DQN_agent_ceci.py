@@ -242,10 +242,8 @@ class DQNAgent_simple_cuda():
                           f"\tS: {train_score} (S* {best_score})"
                           f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
                     break
-            if (i_episode % 100 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
+            if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
                 self._make_end_plot(durations, losses)
-
-            if (i_episode % 2000 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
                 self._save_results(scores, durations, losses)
 
         return scores, durations
