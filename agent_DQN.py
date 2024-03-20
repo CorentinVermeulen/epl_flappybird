@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from itertools import count
-
+from collections import namedtuple, deque
 import pandas as pd
 import torch
 from torch import nn
@@ -57,6 +57,7 @@ class QNetwork(nn.Module):
             nn.Linear(256, output_dim)
         )
 
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 class Agent():
     def __init__(self, env, hyperparameters={}, root_path=None):
@@ -65,7 +66,7 @@ class Agent():
         self.n_observations = len(env.reset())  # Get the number of state observations
         self.root_path = root_path if root_path else "default/"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        # self.device = 'mps'
+        #self.device = 'mps'
         # Set nets and optimizer
         self.qnet = QNetwork(self.n_observations, self.n_actions)
         self.qnet = self.qnet.to(device=self.device)
@@ -104,7 +105,7 @@ class Agent():
 
     def reset(self):
         self.step_done = 0
-        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(self.MEMMORY_SIZE, device=torch.device("cpu")))
+        self.memory = deque([], maxlen=self.MEMMORY_SIZE)
 
     def select_action(self, state):
         """ Select an action from the input state """
@@ -136,61 +137,64 @@ class Agent():
         if self.step_done % self.save_every == 0:
             self.save()
 
+        if len(self.memory) < self.BATCH_SIZE:
+            return None, None
+
         if self.step_done < self.BURNING:
             return None, None
 
         if self.step_done % self.learn_every != 0:
             return None, None
 
-        state, action, reward, next_state, done = self.recall()
+        state, action, reward, next_state = self.recall()
         q_policy_est = self.q_estimated(state, action)
-        q_target_est = self.q_target(reward, next_state, done).unsqueeze(1)
+        q_target_est = self.q_target(reward, next_state)
         loss = self.update_Q_policy(q_policy_est, q_target_est)
         return (q_policy_est.mean().item(), loss)
 
-    def cache(self, state, action, reward, next_state, done):
+    def cache(self, state, action, reward, next_state):
         """ Cache the experience in the replay buffer"""
-
-        state = torch.tensor(state)
-        action = torch.tensor([action])
+        state = torch.tensor(state).unsqueeze(0)
+        action = torch.tensor([action]).unsqueeze(1)
         reward = torch.tensor([reward])
-        next_state = torch.tensor(next_state)
-        done = torch.tensor([done])
-
-        self.memory.add(TensorDict({"state": state, "action": action,
-                                    "reward": reward, "next_state": next_state, "done": done},
-                                   batch_size=[]
-                                   )
-                        )
+        next_state = torch.tensor(next_state).unsqueeze(0)
+        self.memory.append(Transition(state, action, next_state, reward))
 
     def recall(self):
         """ Sample batch from replay buffer"""
-        batch = self.memory.sample(self.BATCH_SIZE).to(self.device)
-        state, next_state, action, reward, done = (batch.get(key) for key in
-                                                   ("state", "next_state", "action", "reward", "done"))
-        return state, action, reward.squeeze(), next_state, done.squeeze()
+        transitions = random.sample(self.memory, self.BATCH_SIZE)
+        batch = Transition(*zip(*transitions))
+        return batch.state, batch.action, batch.reward, batch.next_state
 
     def q_estimated(self, states_batch, actions_batch):
         # Sort un tensor contenant Q pour l'action choisie dans action_batch = Q(s_t,a)
+        states_batch = torch.cat([s for s in states_batch])
+        states_batch = states_batch.to(self.device)
+        actions_batch = torch.cat([a for a in actions_batch])
+        actions_batch = actions_batch.to(self.device)
         current_Q = self.qnet(states_batch, "policy").gather(1, actions_batch)
         return current_Q
 
     @torch.no_grad()
-    def q_target(self, reward_batch, next_state_batch, done_batch):
+    def q_target(self, reward_batch, next_state_batch):
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, next_state_batch)), dtype=torch.bool, device=self.device)
+        non_final_next_states = torch.cat([s  for s in next_state_batch if s is not None])
+        non_final_next_states = non_final_next_states.to(self.device)
+        reward_batch = torch.cat([b for b in reward_batch])
+        reward_batch = reward_batch.to(self.device)
 
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, next_state_batch)), dtype=torch.bool)
-        non_final_next_states = torch.cat([s for s in tuple(s.unsqueeze(0) for s in next_state_batch) if s is not None])
-        # Compute V(s_{t+1}) for all next states.
         next_state_values = torch.zeros(self.BATCH_SIZE, device=self.device)
         with torch.no_grad():
-            next_state_values[non_final_mask] = self.qnet(non_final_next_states.to(self.device), "target").max(1)[0]
-        # Expected Q(s_t,a)
-        return (next_state_values * self.GAMMA) + reward_batch
+            next_state_values[non_final_mask] = self.qnet(non_final_next_states, 'target').max(1)[0]
+
+        q_target = reward_batch + (self.GAMMA * next_state_values)
+        return q_target.unsqueeze(1)
 
     def update_Q_policy(self, q_policy, q_target):
         loss = self.loss_fn(q_policy, q_target)
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_value_(self.qnet.policy.parameters(), 100)
         self.optimizer.step()
         return loss.item()
 
@@ -204,7 +208,7 @@ class Agent():
 
     def save(self, name=None):
         name = "model" if not name else "model_" + name
-        path = self.training_path + f"{name}.chkpt"
+        path = self.training_path + f"{name}.pt"
         torch.save(self.qnet.policy.state_dict(), path)
         # print(f"Model saved to {path} at step {self.step_done}")
 
@@ -229,7 +233,7 @@ class Agent():
             for t in count():
                 action = self.select_action(state)
                 next_state, reward, done, info = self.env.step(action)
-                self.cache(state, action, reward, next_state, done)
+                self.cache(state, action, reward, next_state)
                 q, loss = self.optimize_model()
 
                 if loss:
@@ -256,6 +260,11 @@ class Agent():
 
             if i % 100 == 0:
                 self.make_plot(durations, losses, qs)
+            if i % 200 == 0:
+                pd.DataFrame({"scores": scores,
+                              "durations": durations,
+                              "losses": losses,
+                              "qs": qs}).to_csv(self.training_path + "training.csv")
 
         self.make_plot(durations, losses, qs)
         pd.DataFrame({"scores": scores,
@@ -289,17 +298,33 @@ class Agent():
         plt.savefig(self.training_path + "plot.png")
         plt.close()
 
+    def save_results(self, scores, durations, losses, qs):
+        # Save to csv file
+        pd.DataFrame({"scores": scores,
+                      "durations": durations,
+                      "losses": losses,
+                      "qs": qs}).to_csv(self.training_path + "training.csv")
+        # Write to .txt file agents info
+        for key, value in self.__dict__.items():
+            with open(self.training_path + "info.txt", "w") as f:
+                f.write(f"{key}: {value}\n")
+
     def update_env(self, dic):
         self.env.update_params(dic)
 
 
 env = FlappyBirdEnv()
 env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
-
+env_params = {"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random": True}
 hparams = {'GAMES_TO_PLAY': 1000}
-for rd in [True, False]:
-    env_params = {"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random": rd}
-    for i in range(10):
-        agent = Agent(env=env, hyperparameters=hparams)
-        agent.update_env(env_params)
-        agent.train(name=f"{rd}_{i}")
+agent = Agent(env=env, hyperparameters=hparams)
+agent.update_env(env_params)
+agent.train(name='test')
+
+# hparams = {'GAMES_TO_PLAY': 1000}
+# for rd in [True, False]:
+#     env_params = {"PLAYER_FLAP_ACC": -6, "PLAYER_ACC_Y": 1, "pipes_are_random": rd}
+#     for i in range(10):
+#         agent = Agent(env=env, hyperparameters=hparams)
+#         agent.update_env(env_params)
+#         agent.train(name=f"{rd}_{i}")

@@ -9,7 +9,7 @@ hp = {"layer_sizes": [256, 256, 256, 256],
       "BATCH_SIZE": 256,
       "EPS_DECAY": 2000}
 
-conditions = {"PLAYER_FLAP_ACC": -6,
+game_conditions = {"PLAYER_FLAP_ACC": -6,
               "PLAYER_ACC_Y": 1,
               "pipes_are_random":True}
 
@@ -24,19 +24,12 @@ agent = DQNAgent_simple(FlappyBirdEnv(), hp, root_path=root)
 agent.print_device()
 
 for rd in [False, True]:
-    conditions = {"PLAYER_FLAP_ACC": -6,
+    game_conditions = {"PLAYER_FLAP_ACC": -6,
                   "PLAYER_ACC_Y": 1,
                   "pipes_are_random": rd}
-    log_scores = {}
-    log_durations = {}
 
     for i in range(10):
         agent = DQNAgent_simple(FlappyBirdEnv(), hp, root_path=root)
-        agent.update_env(conditions)
-        scores, durations = agent.train(name=f"rd{rd*1}_{i}")
-        log_scores[f"training{rd*1}_{i}"] = scores
-        log_durations[f"training{rd*1}_{i}"] = durations
-    print('\rLoop with rd =', rd, 'done')
+        agent.update_env(game_conditions)
+        scores, durations = agent.train(name=f"{rd}_{i}")
 
-    pd.DataFrame(log_scores).to_csv(f"{root}scores_rd{rd*1}.csv")
-    pd.DataFrame(log_durations).to_csv(f"{root}durations_rd{rd*1}.csv")
