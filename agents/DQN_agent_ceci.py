@@ -236,11 +236,11 @@ class DQNAgent_simple_cuda():
                         if train_score > 1:
                             self._save_agent()
 
-                    print(f"\r{name if name else ''} - "
-                          f"[{i_episode + 1}/{self.EPOCHS}]"
-                          f"\tD: {t + 1} (D* {best_duration})"
-                          f"\tS: {train_score} (S* {best_score})"
-                          f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
+                    # print(f"\r{name if name else ''} - "
+                    #       f"[{i_episode + 1}/{self.EPOCHS}]"
+                    #       f"\tD: {t + 1} (D* {best_duration})"
+                    #       f"\tS: {train_score} (S* {best_score})"
+                    #       f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
                     break
             if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
                 self._make_end_plot(durations, losses)
