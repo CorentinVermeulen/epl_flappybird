@@ -185,6 +185,10 @@ class FlappyBirdLogic:
         self._loop_iter = 0
         self._frame = 0
 
+    def reset(self, params):
+        self.__init__((self._screen_width, self._screen_height), self._pipe_gap_size, self._defined_pipes)
+        self.update_params(params)
+
     def _update_gravity(self):
         self.gravity = self.PLAYER_ACC_Y + self.GRAVITY_SINUS_AMPLITUDE * sin(self._frame / self.GRAVITY_SINUS_PERIOD)
         return self.gravity

@@ -1,18 +1,17 @@
 import time
 from agents.DQN_agent_ceci import DQNAgent_simple_cuda as DQNAgent_simple
-from flappy_bird_gym.envs import CustomEnvSimple as FlappyBirdEnv
+from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 import pandas as pd
 import numpy as np
 
-root = 'TEST/'
+root = 'TEST_lowdecay/'
 
 hp = {"layer_sizes": [256, 256, 256, 256],
       "EPOCHS": 750,
       "BATCH_SIZE": 256,
-      "EPS_DECAY": 2000}
+      "EPS_DECAY": 1000}
 
 env = FlappyBirdEnv()
-env.obs_var = ['player_x', 'player_y', 'pipe_center_x', 'pipe_center_y', 'v_dist', 'h_dist', 'player_vel_y']
 env.reset()
 
 n_obs = env.observation_space.shape[0]

@@ -75,8 +75,8 @@ class DQN(nn.Module):
 
 class DQNAgent_simple_cuda():
     def __init__(self, env, hyperparameters, root_path= "runs/default/"):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        #self.device = torch.device("mps")
+        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("mps")
         self.env = env
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
@@ -89,15 +89,16 @@ class DQNAgent_simple_cuda():
         print(f"Running on : {self.device} device")
     def reset(self, name='network'):
         # Policy and Target net
-        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name)
-        self.policy_net.to(self.device)
-        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name+"_target")
-        self.target_net.to(self.device)
+        self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name).to(self.device)
+        self.target_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name+"_target").to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
+
         # Memory
         self.memory = ReplayMemory(self.MEMORY_SIZE)
+
         # Optimizer
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+
         # Training variables
         self.step_done = 0
         self.eps_threshold = self.EPS_START
@@ -186,7 +187,6 @@ class DQNAgent_simple_cuda():
             self.target_net.load_state_dict(target_state_dict)
 
         return loss
-
 
     def train(self, name=None):
 
