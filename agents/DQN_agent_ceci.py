@@ -75,8 +75,8 @@ class DQN(nn.Module):
 
 class DQNAgent_simple_cuda():
     def __init__(self, env, hyperparameters, root_path= "runs/default/"):
-        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = torch.device("mps")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #self.device = torch.device("mps")
         self.env = env
         self.n_actions = env.action_space.n  # Get number of actions from gym action space
         self.n_observations = len(env.reset())  # Get the number of state observations
