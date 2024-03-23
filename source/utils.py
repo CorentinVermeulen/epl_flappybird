@@ -184,7 +184,8 @@ def avg_duration(df, title, path):
 def plot_losses(df, title, path):
     plt.figure(figsize=(20, 10))
     for col in df.columns:
-        plt.plot(running_mean(df[col],50), label=col)
+        rm_l = running_mean(df[col], 50)
+        plt.plot(range(len(rm_l)), rm_l, label=col)
     plt.title(title)
     plt.legend()
     plt.tight_layout()

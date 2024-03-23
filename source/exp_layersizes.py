@@ -8,9 +8,6 @@ from agent_simple import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 
 
-
-
-
 baseline_HP = {"EPOCHS": 75,
                "BATCH_SIZE": 256,
                "LR": 1e-4,
@@ -23,15 +20,15 @@ baseline_HP = {"EPOCHS": 75,
                "LAYER_SIZES": [1024, 1024],
                "UPDATE_TARGETNET_RATE": 3}
 
+# [64, 1024, 64],
+# [64, 128, 256, 512],
+# [128, 256, 512, 128],
+# [256, 256, 256, 256],
+# [512, 512, 512, 512],
+# [64, 128, 256, 512, 256, 128]
 
 layers = [[2048],
-          [512, 1024],
-          [64, 1024, 64],
-          [64, 128, 256, 512],
-          [128, 256, 512, 128],
-          [256, 256, 256, 256],
-          [512, 512, 512, 512],
-          [64, 128, 256, 512, 256, 128]
+          [512, 1024]
           ]
 root = '../../experiments/layer_size/'
 
