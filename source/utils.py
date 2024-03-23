@@ -198,7 +198,6 @@ def make_experiment_plot(path):
 
     for dir in os.listdir(path):
         id = re.findall(r'\((.*?)\)', dir)[0].strip("'")
-        print(id)
         if os.path.isdir(os.path.join(path, dir)):
             for file in os.listdir(os.path.join(path, dir)):
                 if file.endswith(".csv"):
