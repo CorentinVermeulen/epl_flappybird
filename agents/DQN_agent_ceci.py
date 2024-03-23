@@ -86,7 +86,8 @@ class DQNAgent_simple_cuda():
         self.training_path = None
 
     def print_device(self):
-        print(f"Running on : {self.device} device")
+        print(f"Running on {self.device} device")
+
     def reset(self, name='network'):
         # Policy and Target net
         self.policy_net = DQN(self.n_observations, self.n_actions, self.LAYER_SIZES, name).to(self.device)
@@ -117,12 +118,65 @@ class DQNAgent_simple_cuda():
         self.LAYER_SIZES = hyperparameters.get('layer_sizes', [256, 256, 256, 256])
         self.UPDATE_TARGETNET_RATE = hyperparameters.get('UPDATE_TARGETNET_RATE', 3)
 
-    def set_training_id(self, name=None):
-        id = datetime.datetime.now().strftime("%d%m_%H%M%S")
-        if name:
-            id = f"{name}_{id}/"
-        self.training_path = self.root_path + id + '/'
-        Path(self.training_path).mkdir(parents=True)
+    def train(self, name=None, print_progress=False):
+
+        self._set_training_id(name)
+
+        best_score = 0
+        best_duration = 0
+        scores = []
+        durations = []
+        losses = []
+
+        for i_episode in range(self.EPOCHS):
+            episode_reward = 0
+            episode_loss = 0
+            state = self.env.reset()
+            state = self._process_state(state)
+            for t in count():
+                # Select and perform an action
+                action = self._select_action(state)
+                # Observe new state and reward
+                observation, reward, done, info = self.env.step(action.item())
+                observation = self._process_state(observation)
+                reward = torch.tensor([reward], device=self.device)
+                episode_reward += reward.item()
+                next_state = None if done else observation
+                # Push to memory
+                self.memory.push(state, action.to(self.device), next_state, reward)
+                # Move to the next state
+                state = next_state
+                # Perform one step of the optimization
+                loss = self._optimize_model()
+                if loss:
+                    episode_loss += loss.item()
+
+                if done:
+                    train_score = self.env._game.score
+                    scores.append(train_score)
+                    durations.append(t + 1)
+                    losses.append(episode_loss)
+
+                    best_score = max(train_score, best_score)
+
+                    if t+1 >= best_duration:
+                        best_duration = t+1
+                        self._save_agent()
+
+                        if train_score > 1:
+                            self._save_agent()
+                    if print_progress:
+                        print(f"\r{name if name else ''} - "
+                              f"[{i_episode + 1}/{self.EPOCHS}]"
+                              f"\tD: {t + 1} (D* {best_duration})"
+                              f"\tS: {train_score} (S* {best_score})"
+                              f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
+                    break
+            if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
+                self._make_end_plot(durations, losses)
+                self._save_results(name, scores, durations, losses)
+
+        return scores, durations
 
     def _process_state(self, state):
         ### TO CHNAGE FOR RGB ###
@@ -188,66 +242,6 @@ class DQNAgent_simple_cuda():
 
         return loss
 
-    def train(self, name=None):
-
-        self.set_training_id(name)
-
-        best_score = 0
-        best_duration = 0
-        scores = []
-        durations = []
-        losses = []
-
-        for i_episode in range(self.EPOCHS):
-            episode_reward = 0
-            episode_loss = 0
-            state = self.env.reset()
-            state = self._process_state(state)
-            for t in count():
-                # Select and perform an action
-                action = self._select_action(state)
-                # Observe new state and reward
-                observation, reward, done, info = self.env.step(action.item())
-                observation = self._process_state(observation)
-                reward = torch.tensor([reward], device=self.device)
-                episode_reward += reward.item()
-                next_state = None if done else observation
-                # Push to memory
-                self.memory.push(state, action.to(self.device), next_state, reward)
-                # Move to the next state
-                state = next_state
-                # Perform one step of the optimization
-                loss = self._optimize_model()
-                if loss:
-                    episode_loss += loss.item()
-
-                if done:
-                    train_score = self.env._game.score
-                    scores.append(train_score)
-                    durations.append(t + 1)
-                    losses.append(episode_loss)
-
-                    best_score = max(train_score, best_score)
-
-                    if t+1 >= best_duration:
-                        best_duration = t+1
-                        self._save_agent()
-
-                        if train_score > 1:
-                            self._save_agent()
-
-                    # print(f"\r{name if name else ''} - "
-                    #       f"[{i_episode + 1}/{self.EPOCHS}]"
-                    #       f"\tD: {t + 1} (D* {best_duration})"
-                    #       f"\tS: {train_score} (S* {best_score})"
-                    #       f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
-                    break
-            if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.EPOCHS - 1:
-                self._make_end_plot(durations, losses)
-                self._save_results(name, scores, durations, losses)
-
-        return scores, durations
-
     def _save_agent(self):
         name = self.training_path + "/policy_net"
         torch.save(self.policy_net.state_dict(), name + '.pt')
@@ -257,17 +251,23 @@ class DQNAgent_simple_cuda():
 
         plt.figure(figsize=(12, 12))
 
-        plt.subplot(2, 1, 1)
+        plt.subplot(3, 1, 1)
         plt.plot(durations, alpha=0.5, label='Durations', color='blue')
         plt.plot(running_mean(durations, N), label=f"Running mean ({N})", color="red")
         plt.ylabel("Durations [frames]")
         plt.title(f"Durations (mean: {np.mean(durations):.2f})")
 
-        plt.subplot(2, 1, 2)
+        plt.subplot(3, 1, 2)
         plt.plot(losses, alpha=0.5, label='Durations', color='blue')
         plt.plot(running_mean(losses, N), label=f"Running mean ({N})", color="red")
         plt.ylabel("Loss [Delta Q value]")
         plt.title(f"Losses")
+
+        avg_dur = np.cumsum(durations) / np.arange(1, len(durations) + 1)
+        plt.subplot(3, 1, 3)
+        plt.plot(avg_dur, label='Average durations', color='blue')
+        plt.ylabel("Durations [frames]")
+        plt.title(f"Avg durations")
         plt.xlabel("Game played")
 
         plt.legend()
@@ -293,7 +293,12 @@ class DQNAgent_simple_cuda():
            for k, v in end_dic.items():
                f.write(f"{k}: {v}\n")
 
-
+    def _set_training_id(self, name=None):
+        id = datetime.datetime.now().strftime("%d%m_%H%M%S")
+        if name:
+            id = f"{name}_{id}/"
+        self.training_path = self.root_path + id + '/'
+        Path(self.training_path).mkdir(parents=True)
 
     def update_env(self, dic):
         self.env.update_params(dic)

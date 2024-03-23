@@ -4,7 +4,7 @@ from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 import pandas as pd
 import numpy as np
 
-root = 'TEST_lowdecay/'
+root = 'TEST_lowdecay_local/'
 
 hp = {"layer_sizes": [256, 256, 256, 256],
       "EPOCHS": 750,
@@ -23,11 +23,11 @@ agent.print_device()
 for i in range(10):
     for rd in [False, True]:
         t = time.perf_counter()
-        game_conditions = {"PLAYER_FLAP_ACC": -6,
+        game_conditions = {"PLAYER_FLAP_ACC": -9,
                            "PLAYER_ACC_Y": 1,
                            "pipes_are_random": rd}
         agent = DQNAgent_simple(FlappyBirdEnv(), hp, root_path=root)
         agent.update_env(game_conditions)
-        scores, durations = agent.train(name=f"{rd}_{i}")
+        scores, durations = agent.train(name=f"{rd}_{i}", print_progress=True)
         print(f"{rd} {i} : D_250:{np.mean(durations[-250:]):.3f} S*: {np.max(scores)} T: {int((time.perf_counter()-t)//60):02}:{int((time.perf_counter()-t)%60):02}")
 

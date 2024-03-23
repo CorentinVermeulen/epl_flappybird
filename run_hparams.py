@@ -16,6 +16,12 @@ env.reset()
 n_obs = env.observation_space.shape[0]
 n_actions = env.action_space.n
 
+# Hyperparameters I want to test
+batch_sizes = [64, 128, 256, 512]
+taus = [0.01, 0.05, 0.1, 0.15, 0.5]
+gammas = [0.999, 0.99, 0.95, 0.9, 0.5]
+update_freqs = [1, 3, 7, 10, 15]
+
 
 for batch_size in [128, 64]:
     for tau in [0.05, 0.1, 0.15]:
