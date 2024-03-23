@@ -181,17 +181,6 @@ def avg_duration(df, title, path):
     plt.savefig(path + f"/{title}.jpg")
     plt.show()
 
-def plot_losses(df, title, path):
-    plt.figure(figsize=(20, 10))
-    for col in df.columns:
-        rm_l = running_mean(df[col], 50)
-        plt.plot(range(len(rm_l)), rm_l, label=col)
-    plt.title(title)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(path + f"/{title}.jpg")
-    plt.show()
-
 def make_experiment_plot(path):
     durations = pd.DataFrame()
     losses = pd.DataFrame()
@@ -207,7 +196,6 @@ def make_experiment_plot(path):
                     losses = pd.concat([losses, df[f'l_{id}']], axis=1)
 
     avg_duration(durations, "Average Durations", path)
-    plot_losses(losses, "Losses", path)
 
 if __name__ == "__main__":
     make_experiment_plot("../../experiments/layer_size/")
