@@ -1,7 +1,10 @@
 import time
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import pandas as pd
+import re
 
 
 def running_mean(x, N):
@@ -22,37 +25,49 @@ def log_df(df, name, scores, durations, end_dic, test_dic, t):
                        }
 
 
-def get_nsm(scores, last_tier=False):
-    if last_tier:
-        length = len(scores)
-        tier = length // 3
-        scores = scores[length - tier:]
-    n = np.sum(np.array(scores) == 20)
-    return n
-
-
-def get_dm(durations, last_tier=False):
-    if last_tier:
-        length = len(durations)
-        tier = length // 3
-        scores = durations[length - tier:]
-    dm = np.mean(durations)
-    return dm
-
-
-def get_n_to10sm(scores):
-    cumsum = np.cumsum(np.array(scores) == 20)
-    index = list(cumsum).index(10) if 10 in list(cumsum) else None
-    return index
-
-
 def get_kpi(scores, durations):
+    def get_nsm(scores, last_tier=False):
+        if last_tier:
+            length = len(scores)
+            tier = length // 3
+            scores = scores[length - tier:]
+        n = np.sum(np.array(scores) == 20)
+        return n
+
+    def get_dm(durations, last_tier=False):
+        if last_tier:
+            length = len(durations)
+            tier = length // 3
+            scores = durations[length - tier:]
+        dm = np.mean(durations)
+        return dm
+
+    def get_n_to10sm(scores):
+        cumsum = np.cumsum(np.array(scores) == 20)
+        index = list(cumsum).index(10) if 10 in list(cumsum) else None
+        return index
+
     return {"nsm": get_nsm(scores),
             "nsm_last": get_nsm(scores, last_tier=True),
             "dm": get_dm(durations),
             "dm_last": get_dm(durations, last_tier=True),
             "n_to_10sm": get_n_to10sm(scores),
             }
+
+
+class HParams():
+    def __init__(self, dict):
+        for key, value in dict.items():
+            setattr(self, key, value)
+
+    def __str__(self):
+        s = "Hyperparameters Config:\n"
+        s += "\n".join([f"   {k}: {v}" for k, v in self.__dict__.items()])
+        return s
+
+    def update(self, dict):
+        for key, value in dict.items():
+            setattr(self, key, value)
 
 
 class MetricLogger:
@@ -153,3 +168,46 @@ class MetricLogger:
         # plt.legend()
         plt.tight_layout()
         plt.savefig(savepath)
+
+
+def avg_duration(df, title, path):
+    plt.figure(figsize=(20, 10))
+    for col in df.columns:
+        avg = np.cumsum(df[col]) / np.arange(1, len(df[col]) + 1)
+        plt.plot(avg, label=col)
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path + f"/{title}.jpg")
+    plt.show()
+
+def plot_losses(df, title, path):
+    plt.figure(figsize=(20, 10))
+    for col in df.columns:
+        plt.plot(running_mean(df[col],50), label=col)
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path + f"/{title}.jpg")
+    plt.show()
+
+def make_experiment_plot(path):
+    durations = pd.DataFrame()
+    losses = pd.DataFrame()
+
+    for dir in os.listdir(path):
+        id = re.findall(r'\((.*?)\)', dir)[0].strip("'")
+        print(id)
+        if os.path.isdir(os.path.join(path, dir)):
+            for file in os.listdir(os.path.join(path, dir)):
+                if file.endswith(".csv"):
+                    df = pd.read_csv(os.path.join(path, dir, file))
+                    df = df.rename(columns={"durations": f"d_{id}", "loss": f"l_{id}"})
+                    durations = pd.concat([durations, df[f'd_{id}']], axis=1)
+                    losses = pd.concat([losses, df[f'l_{id}']], axis=1)
+
+    avg_duration(durations, "Average Durations", path)
+    plot_losses(losses, "Losses", path)
+
+if __name__ == "__main__":
+    make_experiment_plot("../../experiments/layer_size/")

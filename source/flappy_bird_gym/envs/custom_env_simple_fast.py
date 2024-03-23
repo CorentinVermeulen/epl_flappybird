@@ -85,7 +85,7 @@ class FlappyBirdEnvSimpleFast(gym.Env):
         self._score = 0
         self.game_params = {}
         self.obs_gravity = False
-        self.obs_jump_force = False
+        self.obs_jumpforce = False
         self.rewards = {"alive": 0.1, "pass_pipe": 1, "dead": -1, 'score': 0}
 
         self.reset()  # update self.observation_space with the new shape
@@ -138,8 +138,8 @@ class FlappyBirdEnvSimpleFast(gym.Env):
 
         if self.obs_gravity:
             res.append(self._game.gravity)
-        if self.obs_jump_force:
-            res.append(self._game.jump_force)
+        if self.obs_jumpforce:
+            res.append(self._game.jumpforce)
 
         return np.array(res, dtype=np.float32)
 

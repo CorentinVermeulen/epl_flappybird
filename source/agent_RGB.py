@@ -40,27 +40,27 @@ class DQN_rgb(nn.Module):
         super(DQN_rgb, self).__init__()
 
         self.conv_part = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(16),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(32),
+            nn.BatchNorm2d(64),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
         self.linear_part = nn.Sequential(
-            nn.Linear(32, 128),
+            nn.Linear(64, 512),
             nn.ReLU(),
-            nn.Linear(128,  n_actions)
+            nn.Linear(512,  n_actions)
         )
 
     def test(self,x):
         print(x.shape)
         x = self.conv_part(x)
         print(x.shape)
-        x = x.view(-1, 32)
+        x = x.view(-1, 64)
         print(x.shape)
         x = self.linear_part(x)
         print(x.shape)

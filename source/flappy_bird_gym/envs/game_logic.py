@@ -138,6 +138,7 @@ class FlappyBirdLogic:
         self.PIPE_VEL_X = PIPE_VEL_X  # Pipe velocity
 
         # Jump force
+        self.jumpforce = PLAYER_FLAP_ACC
         self.PLAYER_FLAP_ACC = PLAYER_FLAP_ACC
         self.PLAYER_FLAP_ACC_VARIANCE = 0
         # Gravity
@@ -192,6 +193,10 @@ class FlappyBirdLogic:
     def _update_gravity(self):
         self.gravity = self.PLAYER_ACC_Y + self.GRAVITY_SINUS_AMPLITUDE * sin(self._frame / self.GRAVITY_SINUS_PERIOD)
         return self.gravity
+
+    def _update_jumpforce(self):
+        self.jumpforce = self.PLAYER_FLAP_ACC + random.uniform(-1, 1) * self.PLAYER_FLAP_ACC_VARIANCE
+        return self.jumpforce
 
     def update_params(self, params) -> None:
         """ Updates the game's parameters.
@@ -262,7 +267,7 @@ class FlappyBirdLogic:
         self.sound_cache = None
         if action == FlappyBirdLogic.Actions.FLAP:
             if self.player_y > -2 * PLAYER_HEIGHT:
-                self.player_vel_y = self.PLAYER_FLAP_ACC + random.uniform(-1, 1) * self.PLAYER_FLAP_ACC_VARIANCE
+                self.player_vel_y = self._update_jumpforce()
                 self._player_flapped = True
                 self.sound_cache = "wing"
 

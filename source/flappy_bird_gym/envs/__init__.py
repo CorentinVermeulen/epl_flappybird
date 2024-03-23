@@ -27,4 +27,4 @@ from flappy_bird_gym.envs.flappy_bird_env_rgb import FlappyBirdEnvRGB
 from flappy_bird_gym.envs.flappy_bird_env_simple import FlappyBirdEnvSimple
 from flappy_bird_gym.envs.custom_env_simple import CustomEnvSimple
 from flappy_bird_gym.envs.custom_env_rgb import CustomEnvRGB
-from flappy_bird_gym.envs.flappy_bird_env_simple_fast import FlappyBirdEnvSimpleFast
+from flappy_bird_gym.envs.custom_env_simple_fast import FlappyBirdEnvSimpleFast
