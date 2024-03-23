@@ -11,7 +11,7 @@ from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 
 
 
-baseline_HP = {"EPOCHS": 750,
+baseline_HP = {"EPOCHS": 75,
                "BATCH_SIZE": 256,
                "LR": 1e-4,
                "MEMORY_SIZE": 100000,
