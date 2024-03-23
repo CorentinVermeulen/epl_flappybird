@@ -7,8 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_simple import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 
-
-baseline_HP = {"EPOCHS": 75,
+baseline_HP = {"EPOCHS": 750,
                "BATCH_SIZE": 256,
                "LR": 1e-4,
                "MEMORY_SIZE": 100000,
@@ -20,15 +19,21 @@ baseline_HP = {"EPOCHS": 75,
                "LAYER_SIZES": [1024, 1024],
                "UPDATE_TARGETNET_RATE": 3}
 
-# [64, 1024, 64],
-# [64, 128, 256, 512],
-# [128, 256, 512, 128],
-# [256, 256, 256, 256],
-# [512, 512, 512, 512],
-# [64, 128, 256, 512, 256, 128]
+[64, 1024, 64],
+[64, 128, 256, 512],
+[128, 256, 512, 128],
+[256, 256, 256, 256],
+[512, 512, 512, 512],
+[64, 128, 256, 512, 256, 128]
 
 layers = [[2048],
-          [512, 1024]
+          [512, 1024],
+          [64, 1024, 64],
+          [64, 128, 256, 512],
+          [128, 256, 512, 128],
+          [256, 256, 256, 256],
+          [512, 512, 512, 512],
+          [64, 128, 256, 512, 256, 128]
           ]
 root = '../../experiments/layer_size/'
 
@@ -41,12 +46,13 @@ for i in range(len(layers)):
     env = FlappyBirdEnv()
     current_hp = baseline_HP.copy()
     current_hp.update({"LAYER_SIZES": layers[i]})
-    agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp) , root_path=root)
+    agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
     scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])})')
     HS = np.max(scores)
     MD = np.mean(durations)
     MD_last = np.mean(durations[-250:])
     te = time.perf_counter() - t
-    print(f"{i+1} - Layer size {layers[i]}\n\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} - Time {int(te//60):02}:{int(te%60):02}")
+    print(
+        f"{i + 1} - Layer size {layers[i]}\n\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} - Time {int(te // 60):02}:{int(te % 60):02}")
 
 make_experiment_plot(root)
