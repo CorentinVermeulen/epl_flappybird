@@ -35,24 +35,24 @@ layers = [[2048],
           [512, 512, 512, 512],
           [64, 128, 256, 512, 256, 128]
           ]
-root = '../../experiments/layer_size/'
+root = '../../experiments/layer_size2/'
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(layers)} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
-
 for i in range(len(layers)):
-    t = time.perf_counter()
-    env = FlappyBirdEnv()
-    current_hp = baseline_HP.copy()
-    current_hp.update({"LAYER_SIZES": layers[i]})
-    agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
-    scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])})')
-    HS = np.max(scores)
-    MD = np.mean(durations)
-    MD_last = np.mean(durations[-250:])
-    te = time.perf_counter() - t
-    print(
-        f"{i + 1} - Layer size {layers[i]}\n\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} - Time {int(te // 60):02}:{int(te % 60):02}")
+    for rep in range(1,3):
+        t = time.perf_counter()
+        env = FlappyBirdEnv()
+        current_hp = baseline_HP.copy()
+        current_hp.update({"LAYER_SIZES": layers[i]})
+        agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+        scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])})_{rep}')
+        HS = np.max(scores)
+        MD = np.mean(durations)
+        MD_last = np.mean(durations[-250:])
+        te = time.perf_counter() - t
+        print(
+            f"{i + 1} {rep} - Layer size {layers[i]}\n\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} - Time {int(te // 60):02}:{int(te % 60):02}")
 
 make_experiment_plot(root)
