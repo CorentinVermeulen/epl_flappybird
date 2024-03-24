@@ -14,48 +14,44 @@ baseline_HP = {"EPOCHS": 750,
                "GAMMA": 0.95,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
-               "EPS_DECAY": 2000,
+               "EPS_DECAY": 2500,
                "TAU": 0.01,
                "LAYER_SIZES": [1024, 1024],
                "UPDATE_TARGETNET_RATE": 3}
 
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
-[64, 1024, 64],
-[64, 128, 256, 512],
-[128, 256, 512, 128],
-[256, 256, 256, 256],
-[512, 512, 512, 512],
-[64, 128, 256, 512, 256, 128]
-
-layers = [[2048],
-          [512, 1024],
-          [64, 1024, 64],
-          [64, 128, 256, 512],
+layers = [[64, 128, 256, 512],
           [128, 256, 512, 128],
           [256, 256, 256, 256],
           [512, 512, 512, 512],
-          [64, 128, 256, 512, 256, 128]
-          ]
-root = '../../experiments/layer_size3/'
+          [64, 128, 256, 512, 256, 128]]
+
+gammas = [0.999, 0.95, 0.9]
+root = '../../experiments/layer_size_gamma/'
 
 print(f"Python script root: {os.getcwd()}")
-print(f"Starting {len(layers)} experiments at {root}")
+print(f"Starting {len(layers)*len(gammas)*2} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
+
 for i in range(len(layers)):
-    for rep in range(1,4):
-        t = time.perf_counter()
-        env = FlappyBirdEnv()
+    for j in range(len(gammas)):
         current_hp = baseline_HP.copy()
-        current_hp.update({"LAYER_SIZES": layers[i]})
-        agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
-        agent.update_env(game_context)
-        scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])}-{rep})')
-        HS = np.max(scores)
-        MD = np.mean(durations)
-        MD_last = np.mean(durations[-250:])
-        te = time.perf_counter() - t
-        print(
-            f"{i + 1} {rep} - Layer size {layers[i]}\n\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} - Time {int(te // 60):02}:{int(te % 60):02}")
+        current_hp.update({"LAYER_SIZES": layers[i], "GAMMA": gammas[j]})
+        for rep in range(1,3):
+            t = time.perf_counter()
+            env = FlappyBirdEnv()
+            agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+            agent.update_env(game_context)
+            scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])}-{rep})')
+            HS = np.max(scores)
+            MD = np.mean(durations)
+            MD_last = np.mean(durations[-250:])
+            te = time.perf_counter() - t
+            print(
+                f"{i + 1} {j+1} {rep} - G:{gammas[j]} LS:{layers[i]}\n"
+                f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
+                f"- Time {int(te // 60):02}:{int(te % 60):02}"
+            )
 
 make_experiment_plot(root)
