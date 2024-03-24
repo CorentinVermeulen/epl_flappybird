@@ -19,6 +19,8 @@ baseline_HP = {"EPOCHS": 750,
                "LAYER_SIZES": [1024, 1024],
                "UPDATE_TARGETNET_RATE": 3}
 
+game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
+
 [64, 1024, 64],
 [64, 128, 256, 512],
 [128, 256, 512, 128],
@@ -35,19 +37,20 @@ layers = [[2048],
           [512, 512, 512, 512],
           [64, 128, 256, 512, 256, 128]
           ]
-root = '../../experiments/layer_size2/'
+root = '../../experiments/layer_size3/'
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(layers)} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 for i in range(len(layers)):
-    for rep in range(1,3):
+    for rep in range(1,4):
         t = time.perf_counter()
         env = FlappyBirdEnv()
         current_hp = baseline_HP.copy()
         current_hp.update({"LAYER_SIZES": layers[i]})
         agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
-        scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])})_{rep}')
+        agent.update_env(game_context)
+        scores, durations = agent.train(show_progress=False, name=f'layer_size_({str(layers[i])}-{rep})')
         HS = np.max(scores)
         MD = np.mean(durations)
         MD_last = np.mean(durations[-250:])
