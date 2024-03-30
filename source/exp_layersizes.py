@@ -21,24 +21,22 @@ baseline_HP = {"EPOCHS": 750,
 
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
-layers = [[64, 128, 256, 512],
-          [128, 256, 512, 128],
-          [256, 256, 256, 256],
-          [512, 512, 512, 512],
-          [64, 128, 256, 512, 256, 128]]
+layers = [[256, 256, 256, 256],
+          [64, 128, 256, 512, 256, 128],
+          ]
 
-gammas = [0.999, 0.95, 0.9]
-root = '../../experiments/layer_size_gamma/'
+gammas = [0.999]
+root = '../../experiments/layer_size_duel/'
 
 print(f"Python script root: {os.getcwd()}")
-print(f"Starting {len(layers)*len(gammas)*2} experiments at {root}")
+print(f"Starting {len(layers)*len(gammas)*5} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
 for i in range(len(layers)):
     for j in range(len(gammas)):
         current_hp = baseline_HP.copy()
         current_hp.update({"LAYER_SIZES": layers[i], "GAMMA": gammas[j]})
-        for rep in range(1,3):
+        for rep in range(1,6):
             t = time.perf_counter()
             env = FlappyBirdEnv()
             agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
