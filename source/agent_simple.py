@@ -63,6 +63,21 @@ class DQN(nn.Module):
         x = self.layers(x)
         return x
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    def __str__(self):
+        s = super(DQN, self).__str__()
+        layer_sizes = []
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layer_sizes.append((layer.in_features, layer.out_features))
+        layer_str = ' -> '.join(f'{in_f}' for in_f, out_f in layer_sizes)
+        layer_str += f' -> {self.n_actions}'
+        s += f"\nLayers summary: {layer_str}"
+        s += f"\nTrainable parameters: {self.count_parameters()}"
+        return s
+
 class AgentSimple():
     def __init__(self, env, hyperparameters, root_path="runs/default/"):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -311,4 +326,6 @@ if __name__ == "__main__":
     print(summary(net, input_size=(1,8)))
 
     net = DQN(8, 2, [1024], name='test')
+    print(summary(net, input_size=(1,8)))
+
     print(net)
