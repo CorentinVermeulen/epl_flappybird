@@ -75,7 +75,7 @@ class DQN(nn.Module):
         layer_str = ' -> '.join(f'{in_f}' for in_f, out_f in layer_sizes)
         layer_str += f' -> {self.n_actions}'
         s += f"\nLayers summary: {layer_str}"
-        s += f"\nTrainable parameters: {self.count_parameters()}"
+        s += f"\nTrainable parameters: {self.count_parameters():,d}"
         return s
 
 class AgentSimple():
@@ -323,9 +323,8 @@ if __name__ == "__main__":
     hparams = HParams(baseline_HP)
 
     net = DQN(8, 2, [256, 256, 256, 256])
-    print(summary(net, input_size=(1,8)))
+    print(net.count_parameters())
 
-    net = DQN(8, 2, [1024], name='test')
-    print(summary(net, input_size=(1,8)))
-
+    net = DQN(8, 2, [128, 128, 128, 128, 128, 128], name='2')
+    print(net.count_parameters())
     print(net)
