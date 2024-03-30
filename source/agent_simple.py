@@ -171,7 +171,7 @@ class AgentSimple():
             if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.hparams.EPOCHS - 1:
                 self._make_end_plot(durations, losses, name)
                 time_final = time.perf_counter() - t
-                self.training_time = f"{divmod(time_final, 60)[0]:02d}:{divmod(time_final, 60)[1]:02d}"
+                self.training_time = f"{divmod(time_final, 60)[0]:02}:{divmod(time_final, 60)[1]:02}"
                 self._save_results(name, scores, durations, losses)
 
         return scores, durations
