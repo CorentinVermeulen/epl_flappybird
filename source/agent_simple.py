@@ -80,6 +80,7 @@ class DQN(nn.Module):
 
 class AgentSimple():
     def __init__(self, env, hyperparameters, root_path="runs/default/"):
+        self.training_time = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.device = torch.device("mps")
         self.env = env
@@ -114,7 +115,7 @@ class AgentSimple():
         print(f"Hyperparameters updated : {self.hparams}")
 
     def train(self, name=None, show_progress=False):
-
+        t = time.perf_counter()
         self.set_training_id(name)
 
         best_score = 0
@@ -169,6 +170,8 @@ class AgentSimple():
                     break
             if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.hparams.EPOCHS - 1:
                 self._make_end_plot(durations, losses, name)
+                time_final = time.perf_counter() - t
+                self.training_time = f"{divmod(time_final, 60)[0]:02d}:{divmod(time_final, 60)[1]:02d}"
                 self._save_results(name, scores, durations, losses)
 
         return scores, durations
