@@ -184,18 +184,25 @@ def avg_duration(df, title, path):
 def make_experiment_plot(path):
     durations = pd.DataFrame()
     losses = pd.DataFrame()
-
+    ids = {}
     for dir in os.listdir(path):
-        id = re.findall(r'\((.*?)\)', dir)[0].strip("'")
-        if os.path.isdir(os.path.join(path, dir)):
-            for file in os.listdir(os.path.join(path, dir)):
-                if file.endswith(".csv"):
-                    df = pd.read_csv(os.path.join(path, dir, file))
-                    df = df.rename(columns={"durations": f"d_{id}", "loss": f"l_{id}"})
-                    durations = pd.concat([durations, df[f'd_{id}']], axis=1)
-                    losses = pd.concat([losses, df[f'l_{id}']], axis=1)
+        if dir.startswith("layer_size"):
+            id = re.findall(r'\((.*?)\)', dir)[0].strip("'")
+            if id not in ids:
+                ids[id] = 1
+            else:
+                ids[id] += 1
+            id += f"_{ids[id]}"
+            print(id)
+            if os.path.isdir(os.path.join(path, dir)):
+                for file in os.listdir(os.path.join(path, dir)):
+                    if file.endswith(".csv"):
+                        df = pd.read_csv(os.path.join(path, dir, file))
+                        df = df.rename(columns={"durations": f"d_{id}", "loss": f"l_{id}"})
+                        durations = pd.concat([durations, df[f'd_{id}']], axis=1)
+                        losses = pd.concat([losses, df[f'l_{id}']], axis=1)
 
     avg_duration(durations, "Average Durations", path)
 
 if __name__ == "__main__":
-    make_experiment_plot("../../experiments/layer_size/")
+    make_experiment_plot("../../experiments/ls_1")
