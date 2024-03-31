@@ -80,7 +80,7 @@ class DQN(nn.Module):
 
 class AgentSimple():
     def __init__(self, env, hyperparameters, root_path="runs/default/"):
-        self.training_time = None
+        self.id = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.device = torch.device("mps")
         self.env = env
@@ -90,6 +90,7 @@ class AgentSimple():
         self.reset()
         self.root_path = root_path
         self.training_path = None
+        self.training_time = None
 
     def print_device(self):
         print(f"Running on : {self.device} device")
@@ -297,7 +298,8 @@ class AgentSimple():
     def set_training_id(self, name=None):
         id = datetime.datetime.now().strftime("%d%m_%H%M%S")
         if name:
-            id = f"{name}_{id}/"
+            id = f"{name}_{id}"
+        self.id = id
         self.training_path = self.root_path + id + '/'
         Path(self.training_path).mkdir(parents=True)
 
