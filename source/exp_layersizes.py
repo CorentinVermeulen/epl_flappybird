@@ -21,22 +21,21 @@ baseline_HP = {"EPOCHS": 750,
 
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
-layers = [[256, 256, 256, 256],
-          [64, 128, 256, 512, 256, 128],
-          ]
-
-gammas = [0.999]
-root = '../../experiments/layer_size_duel/'
+## LEARNING PARAMETERS
+root = '../../experiments/layer_size_update_rate/'
+layers = [[256, 256, 256, 256], [64, 128, 256, 512, 256, 128], ]
+update_rate = [1, 3, 9]
+iters = 4
 
 print(f"Python script root: {os.getcwd()}")
-print(f"Starting {len(layers)*len(gammas)*5} experiments at {root}")
+print(f"Starting {len(layers)*len(update_rate)*iters} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
 for i in range(len(layers)):
-    for j in range(len(gammas)):
+    for j in range(len(update_rate)):
         current_hp = baseline_HP.copy()
-        current_hp.update({"LAYER_SIZES": layers[i], "GAMMA": gammas[j]})
-        for rep in range(1,6):
+        current_hp.update({"LAYER_SIZES": layers[i], "GAMMA": update_rate[j]})
+        for rep in range(iters):
             t = time.perf_counter()
             env = FlappyBirdEnv()
             agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
@@ -47,9 +46,9 @@ for i in range(len(layers)):
             MD_last = np.mean(durations[-250:])
             te = time.perf_counter() - t
             print(
-                f"{i + 1} {j+1} {rep} - G:{gammas[j]} LS:{layers[i]}\n"
+                f"{i + 1} {j+1} {rep} - G:{update_rate[j]} LS:{layers[i]}\n"
                 f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
                 f"- Time {int(te // 60):02}:{int(te % 60):02}"
             )
 
-make_experiment_plot(root)
+#make_experiment_plot(root)
