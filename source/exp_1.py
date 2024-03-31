@@ -20,11 +20,13 @@ baseline_HP = {"EPOCHS": 750,
                "LR": 1e-4,
                }
 """ EXP 1 : GAMMA ? 
-LAYER SIZE: [256, 256, 256, 256] or [64, 128, 256, 512, 256, 128] ? Equivalent but less params in the first one
+LAYER SIZE: [256, 256, 256, 256] or [64, 128, 256, 512, 256, 128] ? [256, 256, 256, 256] slightly better but is faster
 GAMMA: 0.99 or 0.999 ? 
-
+UPDATE_TARGETNET_RATE: 1 - 3 - 5
+LR: 1e-3 - 1e-4 - 1e-5 ? 
 """
 
+## ENVIRONMENT CONTEXT
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
@@ -44,13 +46,13 @@ for j in range(len(gamma)):
         env = FlappyBirdEnv()
         agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
         agent.update_env(game_context)
-        scores, durations = agent.train(show_progress=False, name=f'G_{str(gamma[j])}_{rep}')
+        scores, durations = agent.train(show_progress=False, name=f'{j}{rep}')
         HS = np.max(scores)
         MD = np.mean(durations)
         MD_last = np.mean(durations[-250:])
         te = time.perf_counter() - t
         print(
-            f"{j+1} {rep+1} - G:{gamma[j]}\n"
+            f"{j+1} {rep+1}\n"
             f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
             f"- Time {int(te // 60):02}:{int(te % 60):02}"
         )
