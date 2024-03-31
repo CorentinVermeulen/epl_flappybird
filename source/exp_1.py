@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_simple import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 30,
+baseline_HP = {"EPOCHS": 750,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
