@@ -21,7 +21,7 @@ baseline_HP = {"EPOCHS": 750,
                }
 """ EXP 1 : GAMMA ? 
 LAYER SIZE: [256, 256, 256, 256] or [64, 128, 256, 512, 256, 128] ? [256, 256, 256, 256] slightly better but is faster
-GAMMA: 0.99 or 0.999 ? 
+GAMMA: 0.99 or 0.999 ? 0.99 is better
 UPDATE_TARGETNET_RATE: 1 - 3 - 5
 LR: 1e-3 - 1e-4 - 1e-5 ? 
 """
@@ -30,17 +30,17 @@ LR: 1e-3 - 1e-4 - 1e-5 ?
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/gamma_99_999/'
-gamma = [0.99, 0.999]
+root = '../../experiments/lrs/'
+values = [1e-3, 1e-4, 1e-5]
 iters = 5
 
 print(f"Python script root: {os.getcwd()}")
-print(f"Starting {len(gamma)*iters} experiments at {root}")
+print(f"Starting {len(values)*iters} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
-for j in range(len(gamma)):
+for j in range(len(values)):
     current_hp = baseline_HP.copy()
-    current_hp.update({"GAMMA": gamma[j]})
+    current_hp.update({"LR": values[j]})
     for rep in range(iters):
         t = time.perf_counter()
         env = FlappyBirdEnv()

@@ -22,7 +22,7 @@ baseline_HP = {"EPOCHS": 750,
 
 """ EXP 2: UPDATE RATE ?
 LAYER SIZE: [256, 256, 256, 256] or [64, 128, 256, 512, 256, 128] ? [256, 256, 256, 256] slightly better but is faster
-GAMMA: 0.99 or 0.999 ? 
+GAMMA: 0.99 or 0.999 ? 0.99 is better
 UPDATE_TARGETNET_RATE: 1 - 3 - 5
 LR: 1e-3 - 1e-4 - 1e-5 ? 
 """
