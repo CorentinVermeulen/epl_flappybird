@@ -36,7 +36,7 @@ LR 1e-5 and GAMMA 0.99
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/update_rate/'
+root = '../../experiments/update_rate_4999/'
 param = [1,3,5]
 iters = 5
 
