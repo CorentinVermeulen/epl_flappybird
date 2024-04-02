@@ -30,7 +30,7 @@ LR: 1e-3 - 1e-4 - 1e-5 ? 1e-5 is better
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/gridsearch/'
+root = '../../experiments/hp_gridsearch/'
 
 iters = 3
 gammas = [0.99, 0.999]
