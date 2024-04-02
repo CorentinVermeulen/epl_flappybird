@@ -107,24 +107,26 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
     print(f"Results saved in {root}/{file_name}")
     plt.show()
 
+def main(root, params_under_study, res):
 
-if __name__ == '__main__':
-
-    root = '../../experiments/lrs_gamma99'
-    params_under_study = ['LR']
-    res = "GAMMA 99 LAYERSIZES 256 256 256 256\n"
-    res += "Experiment results about " + ', '.join(params_under_study).lower() + ":\n"
-
-    params  = extract_params(root, params_under_study)
+    params = extract_params(root, params_under_study)
     df = create_duration_dataset(root, params)
     combs = [[]] + get_all_combinations(params_under_study)
 
     for comb in combs:
         res += get_mean_by(df, comb, top_k=10)
-        if len(comb) > 0:
-            plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb))
+    if len(comb) > 0:
+        plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb))
     with(open(f'{root}/results.txt', 'w')) as file:
         file.write(res)
     print(f"Results saved in {root}/results.txt")
+
+if __name__ == '__main__':
+    root = '../../experiments/lrs_gamma99'
+    params_under_study = ['LR']
+    res = "GAMMA 99 LAYERSIZES 256 256 256 256\n"
+    res += "Experiment results about " + ', '.join(params_under_study).lower() + ":\n"
+
+    main(root, params_under_study, res)
 
 
