@@ -84,7 +84,7 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
     mean = grouped.mean()
     std = grouped.std()
 
-    sorted_mean = mean.mean(axis=0).sort_values(ascending=False)
+    sorted_mean = mean.iloc[-1,:].sort_values(ascending=False)
     top_params = sorted_mean.head(min(len(sorted_mean), top_k)).index
     plt.figure(figsize=(20, 10))
     for i,param in enumerate(top_params):
@@ -92,7 +92,8 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
             label = ' - '.join([f"{p}:{b}" for p, b in zip(bys,param)])
         else:
             label = f"{bys[0]} - {param}"
-        avg = np.cumsum(mean[param]) / np.arange(1, len(mean[param]) + 1)
+        # avg = np.cumsum(mean[param]) / np.arange(1, len(mean[param]) + 1)
+        avg = mean[param]
         ci = 1.96 * std[param] / np.sqrt(len(std))
         plt.plot(avg, label=label, color=list(colors.values())[i])
         plt.fill_between(range(len(avg)), avg + ci, avg - ci, alpha=0.4, color=list(colors.values())[i])
@@ -109,9 +110,10 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
 
 if __name__ == '__main__':
 
-    root = '../../experiments/ls_ez'
-    params_under_study = ['LAYER_SIZES']
-    res = "Experiment results about gamma and layer_sizes values:\n\n"
+    root = '../../experiments/lrs_gamma99'
+    params_under_study = ['LR']
+    res = "GAMMA 99 LAYERSIZES 256 256 256 256\n"
+    res += "Experiment results about " + ', '.join(params_under_study).lower() + ":\n"
 
     params  = extract_params(root, params_under_study)
     df = create_duration_dataset(root, params)
