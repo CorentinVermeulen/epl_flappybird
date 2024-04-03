@@ -6,7 +6,7 @@ import os
 from utils import HParams, make_experiment_plot
 from agent_simple import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
-
+import random
 baseline_HP = {"EPOCHS": 750,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
@@ -53,7 +53,8 @@ for j in range(len(param)):
         env = FlappyBirdEnv()
         agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
         agent.update_env(game_context)
-        scores, durations = agent.train(show_progress=False, name=f'{j+1}{rep+1}')
+        sed = random.randrange(0,1000)
+        scores, durations = agent.train(show_progress=False, name=f'{j+1}_{rep+1}_{sed}')
         HS = np.max(scores)
         MD = np.mean(durations)
         MD_last = np.mean(durations[-250:])
