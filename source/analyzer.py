@@ -45,7 +45,7 @@ def create_duration_dataset(root, params):
     for col in df.columns:
         values.append([params[col][p] for p in names])
 
-    df.columns = pd.MultiIndex.from_tuples(values, names=params_under_study)
+    df.columns = pd.MultiIndex.from_tuples(values, names=names)
     return df
 
 def get_mean_by(df, bys, top_k=10):
@@ -115,16 +115,16 @@ def main(root, params_under_study, res):
 
     for comb in combs:
         res += get_mean_by(df, comb, top_k=10)
-    if len(comb) > 0:
-        plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb))
-    with(open(f'{root}/results.txt', 'w')) as file:
-        file.write(res)
-    print(f"Results saved in {root}/results.txt")
+        if len(comb) > 0:
+            plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb))
+        with(open(f'{root}/results.txt', 'w')) as file:
+            file.write(res)
+        print(f"Results saved in {root}/results.txt")
 
 if __name__ == '__main__':
-    root = '../../experiments/lrs_gamma99'
-    params_under_study = ['LR']
-    res = "GAMMA 99 LAYERSIZES 256 256 256 256\n"
+    root = '../experiments/hp_TAU'
+    params_under_study = ['TAU',]
+    res = "Gridsearch\n"
     res += "Experiment results about " + ', '.join(params_under_study).lower() + ":\n"
 
     main(root, params_under_study, res)
