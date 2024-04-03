@@ -17,7 +17,7 @@ baseline_HP = {"EPOCHS": 750,
                "GAMMA": 0.99,
                "UPDATE_TARGETNET_RATE": 1,
                "BATCH_SIZE": 256,
-               "LR": 1e-5,
+               "LR": 1e-4,
                }
 
 """ Now we have best hyperparameters for the model,
