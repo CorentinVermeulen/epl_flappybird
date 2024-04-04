@@ -17,7 +17,7 @@ baseline_HP = {"EPOCHS": 750,
                "GAMMA": 0.99,
                "UPDATE_TARGETNET_RATE": 1,
                "BATCH_SIZE": 256,
-               "LR": 1e-4,
+               "LR": 1e-5,
                }
 
 """ Now we have best hyperparameters for the model,
@@ -37,7 +37,7 @@ Fourth:
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/rd_pipes/'
+root = '../../experiments/rd_pipes_5/'
 iters = 10
 param = [True, False]
 
