@@ -34,10 +34,10 @@ class CustomEnvRGB(FlappyBirdEnvRGB):
 
     def __str__(self):
         str = (f"CustomEnvSimple(\n"
-               f"\tScreen_size={self._screen_size} (normalized obs: {self._normalize_obs}"
+               f"\tScreen_size={self._screen_size}"
                f"\tAction space: {self.action_space}\n"
                f"\tObservation space: {self.observation_space}\n"
-               f"\tEnv obs values: {self.reset()[0].shape, self.reset()[1:]}\n"
+               f"\tEnv obs shape: {self.reset()[0].shape}\n"
                f"\tReward range: {self.rewards}\n"
                f")")
         return str
