@@ -12,7 +12,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
 from flappy_bird_gym.envs import FlappyBirdEnvRGB
-from DQN_agent_simple import DQNAgent_simple, ReplayMemory
+from agent_simple import AgentSimple, ReplayMemory
+from utils import get_kpi, running_mean, HParams
+
+from torchsummary import summary
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -28,47 +31,44 @@ def show_state(out, title):
 def processFrame(frame):
     frame = frame[55:288,0:400] #crop image
     frame = cv2.cvtColor(frame,cv2.COLOR_RGB2GRAY) #convert image to black and white
-    frame = cv2.resize(frame, (30, 30))
-    frame = cv2.filter2D(frame, -1, np.array([[-1,-1,-1], [-1, 9,-1],[-1,-1,-1]]))
+    frame = cv2.resize(frame, (84, 84))
+    #frame = cv2.filter2D(frame, -1, np.array([[-1,-1,-1], [-1, 9,-1],[-1,-1,-1]]))
     frame = frame.astype(np.float64)/255.0
     return torch.tensor(frame, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 
 
 class DQN_rgb(nn.Module):
 
-    def __init__(self, n_actions):
+    def __init__(self, n_channels, n_actions):
         super(DQN_rgb, self).__init__()
 
         self.conv_part = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=1, out_channels=32, kernel_size=8, stride=4, padding=0),
             nn.ReLU(),
-            nn.BatchNorm2d(16),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=0),
             nn.ReLU(),
-            nn.BatchNorm2d(64),
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=0),
+            nn.ReLU(),
+            nn.Flatten(),
         )
 
         self.linear_part = nn.Sequential(
-            nn.Linear(64, 512),
+            nn.Linear(3136, 512),
             nn.ReLU(),
             nn.Linear(512,  n_actions)
         )
 
     def test(self,x):
-        print(x.shape)
+
+        print(f"Input shape: {x.shape}")
         x = self.conv_part(x)
-        print(x.shape)
-        x = x.view(-1, 64)
-        print(x.shape)
+        print(f"After conv part: {x.shape}")
         x = self.linear_part(x)
-        print(x.shape)
+        print(f"Output shape: {x.shape}")
         return x
 
     def forward(self, x):
         x = self.conv_part(x)
-        x = x.view(-1, 32)
         x = self.linear_part(x)
         return x
 
@@ -76,55 +76,48 @@ class DQN_rgb(nn.Module):
         for name, param in self.named_parameters():
             writer.add_histogram(name, param, epoch)
 
-class DQN_agent_rgb(DQNAgent_simple):
+class AgentRGB(AgentSimple):
     def __init__(self, env, hyperparameters):
-        super(DQN_agent_rgb, self).__init__(env, hyperparameters)
+        super(AgentRGB, self).__init__(env, hyperparameters)
         self.type="rgb"
 
-    def reset(self):
+    def reset(self, name='Net'):
         # Policy and Target net
-        self.policy_net = DQN_rgb(self.n_actions)
-        self.target_net = DQN_rgb(self.n_actions)
+        self.policy_net = DQN_rgb(self.n_observations, self.n_actions).to(
+            self.device)
+        self.target_net = DQN_rgb(self.n_observations, self.n_actions).to(
+            self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
+
         # Memory
-        self.memory = ReplayMemory(self.MEMORY_SIZE)
+        self.memory = ReplayMemory(self.hparams.MEMORY_SIZE)
+
         # Optimizer
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.hparams.LR, amsgrad=True)
+
         # Training variables
         self.step_done = 0
-        self.eps_threshold = self.EPS_START
-
-    def set_nets(self, path):
-        # Create nets
-        self.policy_net = DQN_rgb(self.n_actions)
-        self.target_net = DQN_rgb(self.n_actions)
-
-        # Load nets
-        self.policy_net.load_state_dict(torch.load(path + "/policy_net.pt"))
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        # Self.optimizer
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+        self.eps_threshold = self.hparams.EPS_START
 
     def _process_state(self, state):
         return processFrame(state)
 
 
+if __name__ == "__main__":
+    baseline_HP = {"EPOCHS": 1000,
+                   "BATCH_SIZE": 256,
+                   "LR": 1e-4,
+                   "MEMORY_SIZE": 100000,
+                   "GAMMA": 0.95,
+                   "EPS_START": 0.9,
+                   "EPS_END": 0.001,
+                   "EPS_DECAY": 2000,
+                   "TAU": 0.01,
+                   "LAYER_SIZES": [256, 256, 256, 256],
+                   "UPDATE_TARGETNET_RATE": 3}
+    hparams = HParams(baseline_HP)
 
-t=time.perf_counter()
-env = FlappyBirdEnvRGB()
+    env = FlappyBirdEnvRGB()
+    agent = AgentRGB(env, hparams)
+    agent.train(show_progress=True)
 
-hparams = {"EPOCHS": 1500, "BATCH_SIZE": 64, "EPS_DECAY": 4000}
-qdnAgent = DQN_agent_rgb(env, hparams)
-qdnAgent.train()
-
-# batch_size = 128
-# image_size = (30, 30)
-# test_images = np.random.rand(batch_size, 1, image_size[0], image_size[1])
-# test_batch = torch.tensor(test_images, dtype=torch.float32)
-# qdnAgent.policy_net.test(test_batch)
-
-# # Test forward pass
-# print("Test forward pass")
-# state = processFrame(env.reset())
-# print(state.shape)
-# qdnAgent.policy_net(state).max(1)[1].view(1, 1)

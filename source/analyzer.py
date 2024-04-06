@@ -22,10 +22,18 @@ def extract_params(root, params_list):
                 with open(file_path, 'r') as file:
                     content = file.read()
                     d = {}
-                    for param in params_list:
-                        search = re.search(fr'{param}: (.*)', content)
-                        if search:
-                            d[param] = search.group(1)
+                    for param, ev in params_list:
+                        if ev:
+                            search = re.search(fr'Game parameters: (.*)', content)
+                            game_param = eval(search.group(1))
+                            if eval(param) in game_param.keys():
+                                d[param] = game_param[eval(param)]
+                            else:
+                                print(f"Param {param} not found in {game_param}")
+                        else:
+                            search = re.search(fr'{param}: (.*)', content)
+                            if search:
+                                d[param] = search.group(1)
                     params[dir_name] = d
     return params
 
@@ -77,12 +85,18 @@ def convert_to_cumsum_df(df):
     cs = cs.apply(lambda x: x / (x.index + 1))
     return cs
 
-def plot_cumsum_by(df, bys, title, top_k = 10):
+def plot_cumsum_by(df, bys, title, top_k = 10, half = False, half_grouped = False):
     colors = mcolors.TABLEAU_COLORS
     df = convert_to_cumsum_df(df)
     grouped = df.groupby(bys, axis=1)
     mean = grouped.mean()
     std = grouped.std()
+    if half:
+        max_values = grouped.max().max() # Max value each comb can reach
+        if half_grouped:
+            max_values = max(max_values)
+        mid_values = max_values / 2
+        half_max_index = mean[mean <= mid_values].idxmax()
 
     sorted_mean = mean.iloc[-1,:].sort_values(ascending=False)
     top_params = sorted_mean.head(min(len(sorted_mean), top_k)).index
@@ -98,6 +112,20 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
         plt.plot(avg, label=label, color=list(colors.values())[i])
         plt.fill_between(range(len(avg)), avg + ci, avg - ci, alpha=0.4, color=list(colors.values())[i])
 
+        if half:
+            if grouped:
+                plt.vlines(half_max_index[param], 0, mid_values,
+                       color=list(colors.values())[i], linestyle='dashed')
+            else:
+                plt.vlines(half_max_index[param], 0, mid_values[param],
+                           color=list(colors.values())[i], linestyle='dashed')
+
+            plt.text(half_max_index[param],-5,f'{half_max_index[param]}',
+                     verticalalignment='top',color=list(colors.values())[i])
+    if half:
+        plt.vlines(0, 0, 0,
+                   color='black', linestyle='dashed',
+                   label='N games to 50% of max values')
     plt.legend()
     plt.title(title)
     plt.xlabel('Games played')
@@ -107,26 +135,28 @@ def plot_cumsum_by(df, bys, title, top_k = 10):
     print(f"Results saved in {root}/{file_name}")
     plt.show()
 
-def main(root, params_under_study, res):
+def main(root, params_under_study, res, half=True, half_grouped=True):
 
     params = extract_params(root, params_under_study)
+    pnames = [p[0] for p in params_under_study]
     df = create_duration_dataset(root, params)
-    combs = [[]] + get_all_combinations(params_under_study)
+    combs = [[]] + get_all_combinations(pnames)
 
     for comb in combs:
         res += get_mean_by(df, comb, top_k=10)
         if len(comb) > 0:
-            plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb))
+            plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb), half=half, half_grouped=half_grouped)
         with(open(f'{root}/results.txt', 'w')) as file:
             file.write(res)
         print(f"Results saved in {root}/results.txt")
 
 if __name__ == '__main__':
-    root = '../experiments/hp_TAU'
-    params_under_study = ['TAU',]
-    res = "Gridsearch\n"
-    res += "Experiment results about " + ', '.join(params_under_study).lower() + ":\n"
+    root = '../../experiments/rd_pipes_5'
+    params_under_study = [("'pipes_are_random'", True),
+                          ]
+    # res = "Gridsearch\n"
+    res = "Experiment results about " + ', '.join([p[0] for p in params_under_study]).lower() + ":\n"
 
-    main(root, params_under_study, res)
+    main(root, params_under_study, res, half=True, half_grouped=True)
 
 
