@@ -80,7 +80,7 @@ class AgentRGB(AgentSimple):
     def __init__(self, env, hyperparameters):
         super(AgentRGB, self).__init__(env, hyperparameters)
         self.type="rgb"
-        self.device="mps"
+        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.reset()
 
     def reset(self, name='Net'):
