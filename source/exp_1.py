@@ -5,7 +5,7 @@ import torch.cuda
 import os
 from utils import HParams, make_experiment_plot
 from agent_RGB import AgentRGB
-from flappy_bird_gym.envs import FlappyBirdEnvRGB as FlappyBirdEnv
+from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
 
 baseline_HP = {"EPOCHS": 1000,
                "MEMORY_SIZE": 100000,

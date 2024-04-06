@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter  # tensorboard --logdir /Users/corentinvrmln/Desktop/memoire/flappybird/repo/DQN/runs/DQN
-from flappy_bird_gym.envs import FlappyBirdEnvRGB
+from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnvRGB
 from agent_simple import AgentSimple, ReplayMemory
 from utils import get_kpi, running_mean, HParams
 
