@@ -28,13 +28,13 @@ def show_state(out, title):
     plt.imshow(out)
     plt.show()
 
-def processFrame(frame):
+def processFrame(frame, device):
     frame = frame[55:288,0:400] #crop image
     frame = cv2.cvtColor(frame,cv2.COLOR_RGB2GRAY) #convert image to black and white
     frame = cv2.resize(frame, (84, 84))
     #frame = cv2.filter2D(frame, -1, np.array([[-1,-1,-1], [-1, 9,-1],[-1,-1,-1]]))
     frame = frame.astype(np.float64)/255.0
-    return torch.tensor(frame, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+    return torch.tensor(frame, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
 
 
 class DQN_rgb(nn.Module):
@@ -55,7 +55,7 @@ class DQN_rgb(nn.Module):
         self.linear_part = nn.Sequential(
             nn.Linear(3136, 512),
             nn.ReLU(),
-            nn.Linear(3136,  n_actions)
+            nn.Linear(512,  n_actions)
         )
 
     def test(self,x):
@@ -80,13 +80,13 @@ class AgentRGB(AgentSimple):
     def __init__(self, env, hyperparameters):
         super(AgentRGB, self).__init__(env, hyperparameters)
         self.type="rgb"
+        self.device="mps"
+        self.reset()
 
     def reset(self, name='Net'):
         # Policy and Target net
-        self.policy_net = DQN_rgb(self.n_observations, self.n_actions).to(
-            self.device)
-        self.target_net = DQN_rgb(self.n_observations, self.n_actions).to(
-            self.device)
+        self.policy_net = DQN_rgb(self.n_observations, self.n_actions).to(self.device)
+        self.target_net = DQN_rgb(self.n_observations, self.n_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         # Memory
@@ -100,7 +100,7 @@ class AgentRGB(AgentSimple):
         self.eps_threshold = self.hparams.EPS_START
 
     def _process_state(self, state):
-        return processFrame(state)
+        return processFrame(state, self.device)
 
 
 if __name__ == "__main__":
