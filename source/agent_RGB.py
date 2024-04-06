@@ -55,7 +55,7 @@ class DQN_rgb(nn.Module):
         self.linear_part = nn.Sequential(
             nn.Linear(3136, 512),
             nn.ReLU(),
-            nn.Linear(512,  n_actions)
+            nn.Linear(3136,  n_actions)
         )
 
     def test(self,x):
