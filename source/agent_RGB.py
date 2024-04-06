@@ -76,11 +76,18 @@ class DQN_rgb(nn.Module):
         for name, param in self.named_parameters():
             writer.add_histogram(name, param, epoch)
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    def __str__(self):
+        s = super(DQN_rgb, self).__str__()
+        s += f"\nTrainable parameters: {self.count_parameters():,d}"
+        return s
+
 class AgentRGB(AgentSimple):
-    def __init__(self, env, hyperparameters):
-        super(AgentRGB, self).__init__(env, hyperparameters)
-        self.type="rgb"
-        self.device= torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    def __init__(self, env, hyperparameters, root_path="runs/default/"):
+        super(AgentRGB, self).__init__(env, hyperparameters, root_path)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.reset()
 
     def reset(self, name='Net'):

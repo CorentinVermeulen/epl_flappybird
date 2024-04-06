@@ -4,14 +4,14 @@ import numpy as np
 import torch.cuda
 import os
 from utils import HParams, make_experiment_plot
-from agent_simple import AgentSimple
-from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
+from agent_RGB import AgentRGB
+from flappy_bird_gym.envs import FlappyBirdEnvRGB as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 750,
+baseline_HP = {"EPOCHS": 1000,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
-               "EPS_DECAY": 2500,
+               "EPS_DECAY": 3000,
                "LAYER_SIZES": [256, 256, 256, 256],
                "GAMMA": 0.999,
                "UPDATE_TARGETNET_RATE": 1,
@@ -30,7 +30,7 @@ LR: 1e-3 - 1e-4 - 1e-5 ? 1e-5 is better
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/hp_gridsearch/'
+root = '../../experiments/hp_gridsearch_rgb/'
 
 iters = 3
 gammas = [0.99, 0.999]
@@ -54,7 +54,7 @@ for tau in taus:
             for rep in range(iters):
                 t = time.perf_counter()
                 env = FlappyBirdEnv()
-                agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+                agent = AgentRGB(FlappyBirdEnv(), HParams(current_hp), root_path=root)
                 agent.update_env(game_context)
                 scores, durations = agent.train(show_progress=False, name=f'T{tau}_G{gamma}_LR{lr}_R{rep}')
                 HS = np.max(scores)
