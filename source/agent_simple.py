@@ -149,24 +149,24 @@ class AgentSimple():
                     episode_loss += loss.item()
 
                 if done:
-                    train_score = self.env._game.score
-                    scores.append(train_score)
+                    #train_score = self.env._game.score
+                    #scores.append(train_score)
                     durations.append(t + 1)
                     losses.append(episode_loss)
 
-                    best_score = max(train_score, best_score)
+                    #best_score = max(train_score, best_score)
 
                     if t + 1 >= best_duration:
                         best_duration = t + 1
                         self._save_agent()
 
-                        if train_score > 1:
-                            self._save_agent()
+                        #if train_score > 1:
+                            #self._save_agent()
                     if show_progress:
                         print(f"\r{name if name else ''} - "
                               f"[{i_episode + 1}/{self.hparams.EPOCHS}]"
                               f"\tD: {t + 1} (D* {best_duration})"
-                              f"\tS: {train_score} (S* {best_score})"
+                              #f"\tS: {train_score} (S* {best_score})"
                               f"\tEPS:{self.eps_threshold} , last 100 d_mean {np.mean(durations[-100:]):.2f}",end='')
                     break
             if (i_episode % 200 == 0 and i_episode > 0) or i_episode == self.hparams.EPOCHS - 1:
@@ -278,7 +278,7 @@ class AgentSimple():
         plt.close()
 
     def _save_results(self, name, scores, durations, loss):
-        pd.DataFrame({"scores": scores,
+        pd.DataFrame({#"scores": scores,
                       "durations": durations,
                       "loss": loss}).to_csv(self.training_path + f"/results_({name}).csv")
 
