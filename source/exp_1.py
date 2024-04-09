@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_RGB import AgentRGB
 from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 2000,
+baseline_HP = {"EPOCHS": 50,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
@@ -30,7 +30,7 @@ LR: 1e-3 - 1e-4 - 1e-5 ? 1e-5 is better
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/hp_gridsearch_rgb_2/'
+root = '../../exp_RGB/hp_gridsearch_rgb_2/'
 
 iters = 5
 gammas = [0.95, 0.99]
@@ -53,7 +53,7 @@ for tau in taus:
             env = FlappyBirdEnv()
             agent = AgentRGB(FlappyBirdEnv(), HParams(current_hp), root_path=root)
             agent.update_env(game_context)
-            scores, durations = agent.train(show_progress=False, name=f'G{gamma}_T{tau}_R{rep}')
+            scores, durations = agent.train(show_progress=True, name=f'G{gamma}_T{tau}_R{rep}')
             HS = np.max(scores)
             MD = np.mean(durations)
             MD_last = np.mean(durations[-250:])

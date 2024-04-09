@@ -245,7 +245,7 @@ class AgentSimple():
         torch.save(self.policy_net.state_dict(), name + '.pt')
 
     def _make_end_plot(self, durations, losses, name):
-        N = 50
+        N = 10
 
         plt.figure(figsize=(12, 12))
         plt.suptitle(name if name else "")
@@ -264,9 +264,10 @@ class AgentSimple():
         plt.title(f"Avg durations")
         plt.legend()
 
+        av_loss = losses/durations
         plt.subplot(3, 1, 3)
-        plt.plot(losses, alpha=0.3, label='Loss', color='blue')
-        plt.plot(running_mean(losses, N), label=f"Running mean ({N})", color="red")
+        plt.plot(av_loss, alpha=0.3, label='Loss', color='blue')
+        plt.plot(running_mean(av_loss, N), label=f"Running mean ({N})", color="red")
         plt.ylabel("Loss [Delta Q value]")
         plt.title(f"Losses")
 
