@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_RGB import AgentRGB
 from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 1000,
+baseline_HP = {"EPOCHS": 2000,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
@@ -30,13 +30,12 @@ LR: 1e-3 - 1e-4 - 1e-5 ? 1e-5 is better
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/hp_gridsearch_rgb/'
+root = '../../experiments/hp_gridsearch_rgb_2/'
 
-iters = 3
-gammas = [0.99, 0.999]
-lrs = [1e-4, 1e-5]
+iters = 5
+gammas = [0.95, 0.99]
 taus = [0.01, 0.001]
-n = len(gammas) * len(lrs) * len(taus)
+n = len(gammas) * len(taus)
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n*iters} experiments at {root}")
@@ -44,28 +43,26 @@ print("Device cuda? ", torch.cuda.is_available())
 
 for tau in taus:
     for gamma in gammas:
-        for lr in lrs:
-            current_hp = baseline_HP.copy()
-            current_hp.update({"TAU": tau,
-                               "GAMMA": gamma,
-                               "LR": lr
-                               }
-                              )
-            for rep in range(iters):
-                t = time.perf_counter()
-                env = FlappyBirdEnv()
-                agent = AgentRGB(FlappyBirdEnv(), HParams(current_hp), root_path=root)
-                agent.update_env(game_context)
-                scores, durations = agent.train(show_progress=False, name=f'T{tau}_G{gamma}_LR{lr}_R{rep}')
-                HS = np.max(scores)
-                MD = np.mean(durations)
-                MD_last = np.mean(durations[-250:])
-                te = time.perf_counter() - t
-                print(
-                    f"T{tau}_G{gamma}_LR{lr}__R{rep}\n"
-                    f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
-                    f"- Time {int(te // 60):02}:{int(te % 60):02}"
-                )
+        current_hp = baseline_HP.copy()
+        current_hp.update({"TAU": tau,
+                           "GAMMA": gamma,
+                           }
+                          )
+        for rep in range(iters):
+            t = time.perf_counter()
+            env = FlappyBirdEnv()
+            agent = AgentRGB(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+            agent.update_env(game_context)
+            scores, durations = agent.train(show_progress=False, name=f'G{gamma}_T{tau}_R{rep}')
+            HS = np.max(scores)
+            MD = np.mean(durations)
+            MD_last = np.mean(durations[-250:])
+            te = time.perf_counter() - t
+            print(
+                f"G{gamma}_T{tau}_R{rep}\n"
+                f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
+                f"- Time {int(te // 60):02}:{int(te % 60):02}"
+            )
 
 
 #make_experiment_plot(root)
