@@ -54,13 +54,13 @@ for tau in taus:
             agent = AgentRGB(FlappyBirdEnv(), HParams(current_hp), root_path=root)
             agent.update_env(game_context)
             scores, durations = agent.train(show_progress=False, name=f'G{gamma}_T{tau}_R{rep}')
-            HS = np.max(scores)
+            HD = np.max(durations)
             MD = np.mean(durations)
             MD_last = np.mean(durations[-250:])
             te = time.perf_counter() - t
             print(
                 f"G{gamma}_T{tau}_R{rep}\n"
-                f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
+                f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
                 f"- Time {int(te // 60):02}:{int(te % 60):02}"
             )
 
