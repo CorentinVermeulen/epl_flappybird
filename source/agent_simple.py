@@ -264,12 +264,15 @@ class AgentSimple():
         plt.title(f"Avg durations")
         plt.legend()
 
-        av_loss = np.array(losses)/np.array(durations)
-        plt.subplot(3, 1, 3)
-        plt.plot(av_loss, alpha=0.3, label='Loss', color='blue')
-        plt.plot(running_mean(av_loss, N), label=f"Running mean ({N})", color="red")
-        plt.ylabel("Loss [Delta Q value]")
-        plt.title(f"Losses")
+        try:
+            av_loss = np.array(losses)/np.array(durations)
+            plt.subplot(3, 1, 3)
+            plt.plot(av_loss, alpha=0.3, label='Loss', color='blue')
+            plt.plot(running_mean(av_loss, N), label=f"Running mean ({N})", color="red")
+            plt.ylabel("Loss [Delta Q value]")
+            plt.title(f"Losses")
+        except:
+            pass
 
 
         plt.xlabel("Game played")
