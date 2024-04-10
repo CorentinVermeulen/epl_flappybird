@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_RGB import AgentRGB
 from flappy_bird_gym.envs import CustomEnvRGB as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 50,
+baseline_HP = {"EPOCHS": 2000,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
