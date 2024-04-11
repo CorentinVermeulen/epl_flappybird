@@ -16,7 +16,7 @@ baseline_HP = {"EPOCHS": 2000,
                "GAMMA": 0.999,
                "UPDATE_TARGETNET_RATE": 1,
                "BATCH_SIZE": 256,
-               "LR": 1e-5,
+               "LR": 1e-4,
                "TAU": 0.01,
                }
 """ EXP 1 : GAMMA ? 
