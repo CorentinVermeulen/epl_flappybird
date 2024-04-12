@@ -17,7 +17,7 @@ baseline_HP = {"EPOCHS": 750,
                "GAMMA": 0.99,
                "UPDATE_TARGETNET_RATE": 1,
                "BATCH_SIZE": 256,
-               "LR": 1e-5,
+               "LR": 1e-4,
                }
 
 """ Now we have best hyperparameters for the model,
@@ -34,33 +34,44 @@ Fourth:
 """
 
 ## ENVIRONMENT CONTEXT
-game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
+game_context = {'PLAYER_ACC_Y': 1,
+                'PLAYER_FLAP_ACC': -5,
+                'PLAYER_FLAP_ACC_VARIANCE': 0,
+                'pipes_are_random': True, }
 
 ## LEARNING PARAMETERS
-root = '../../experiments/rd_pipes_5/'
-iters = 10
-param = [True, False]
+root = '../../experiments/rd_jf/'
+iters = 5
+param = [0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 4]
+lrs = [1e-4, 1e-5]
+obss = [True, False]
 
 print(f"Python script root: {os.getcwd()}")
-print(f"Starting {len(param)*iters} experiments at {root}")
+print(f"Starting {len(param)*iters*len(lrs)*len(obss)} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
-for j in range(len(param)):
-    current_hp = baseline_HP.copy()
-    game_context.update({'pipes_are_random': param[j]})
-    for rep in range(iters):
-        t = time.perf_counter()
-        env = FlappyBirdEnv()
-        agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
-        agent.update_env(game_context)
-        sed = random.randrange(0,1000)
-        scores, durations = agent.train(show_progress=False, name=f'{j+1}_{rep+1}_{sed}')
-        HS = np.max(scores)
-        MD = np.mean(durations)
-        MD_last = np.mean(durations[-250:])
-        te = time.perf_counter() - t
-        print(
-            f"{j+1} {rep+1}\n"
-            f"\tS* {HS:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
-            f"- Time {int(te // 60):02}:{int(te % 60):02}"
-        )
+for i in range(len(obss)):
+    for j in range(len(lrs)):
+        for k in range(len(param)):
+            current_hp = baseline_HP.copy()
+            current_hp.update({'LR': lrs[j]})
+            game_context.update({'PLAYER_FLAP_ACC_VARIANCE': param[k]})
+            for rep in range(iters):
+                t = time.perf_counter()
+                env = FlappyBirdEnv()
+                env.obs_jumpforce = obss[i]
+
+                agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+                agent.update_env(game_context)
+
+                sed = random.randrange(0,1000)
+                scores, durations = agent.train(show_progress=False, name=f'{i+1}{j+1}{k+1}_{rep+1}_{sed}')
+                HD = np.max(durations)
+                MD = np.mean(durations)
+                MD_last = np.mean(durations[-250:])
+                te = time.perf_counter() - t
+                print(
+                    f"{i+1}{j+1}{k+1}_{rep+1}_{sed}\n"
+                    f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
+                    f"- Time {int(te // 60):02}:{int(te % 60):02}"
+                )
