@@ -113,7 +113,7 @@ def plot_cumsum_by(df, bys, title, top_k = 10, half = False, half_grouped = Fals
         plt.fill_between(range(len(avg)), avg + ci, avg - ci, alpha=0.4, color=list(colors.values())[i])
 
         if half:
-            if grouped:
+            if half_grouped:
                 plt.vlines(half_max_index[param], 0, mid_values,
                        color=list(colors.values())[i], linestyle='dashed')
             else:
@@ -151,12 +151,13 @@ def main(root, params_under_study, res, half=True, half_grouped=True):
         print(f"Results saved in {root}/results.txt")
 
 if __name__ == '__main__':
-    root = '../../experiments/rd_pipes_5'
-    params_under_study = [("'pipes_are_random'", True),
+    root = '../../experiments/C_or_tau/'
+    params_under_study = [("TAU", False),
+                          ("UPDATE_TARGETNET_RATE", False)
                           ]
     # res = "Gridsearch\n"
     res = "Experiment results about " + ', '.join([p[0] for p in params_under_study]).lower() + ":\n"
 
-    main(root, params_under_study, res, half=True, half_grouped=True)
+    main(root, params_under_study, res, half=False, half_grouped=False)
 
 

@@ -95,10 +95,14 @@ class FlappyBirdEnvSimpleFast(gym.Env):
                f"\tScreen_size={self._screen_size} (normalized obs: {self._normalize_obs}"
                f"\tAction space: {self.action_space}\n"
                f"\tObservation space: {self.observation_space}\n"
-               f"\tEnv obs values: {self.reset()}\n"
+               f"\tEnv obs values: {len(self.reset())}\n"
                f"\tReward range: {self.rewards}\n"
-               f"\tGame parameters: {self.game_params}\n"
-               f")")
+               f"\tObs gravity: {self.obs_gravity}\n"
+               f"\tObs jumpforce: {self.obs_jumpforce}\n"
+               f"\tGame parameters: \n")
+        for p in self.game_params:
+            str += f"\t\t{p}: {self.game_params[p]}\n"
+        str += ")"
         return str
 
     def reset(self):
@@ -134,7 +138,7 @@ class FlappyBirdEnvSimpleFast(gym.Env):
             h_dist /= self._screen_size[0]
             v_dist /= self._screen_size[1]
 
-        res = [self._game.player_x,player_y , upper_pipe_y, lower_pipe_y, pipe_center, low_pipe["x"], v_dist, h_dist, self._game.player_vel_y, self._game.gravity]
+        res = [self._game.player_x , player_y , upper_pipe_y, lower_pipe_y, pipe_center, low_pipe["x"], v_dist, h_dist, self._game.player_vel_y]
 
         if self.obs_gravity:
             res.append(self._game.gravity)
