@@ -21,19 +21,19 @@ baseline_HP = {"EPOCHS": 750,
                }
 
 """
-EXPERIENCE 2: Jump Force impact
+EXPERIENCE 3: Gravity impact
 """
 
 ## ENVIRONMENT CONTEXT
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': True}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/exp_2/'
+root = '../../experiments/exp_3/'
 
 iters = 5
-params = [0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3] # Jump Force
-p_name = 'PLAYER_FLAP_ACC_VARIANCE'
-p_short = 'JF'
+params = [0, 0.25, 0.5, 0.75, 1.0, 1.5]  # Gravity
+p_name = 'GRAVITY_VARIANCE'
+p_short = 'GR'
 lrs = [1e-4, 1e-5]
 obss = [True, False]
 n = iters * len(params) * len(lrs) * len(obss)
@@ -49,16 +49,16 @@ for obs in obss:
             game_context.update({p_name: param})
             for rep in range(iters):
                 t = time.perf_counter()
-                
+
                 env = FlappyBirdEnv()
-                env.obs_jumpforce = obs
-                env.obs_gravity = False
-                
+                env.obs_jumpforce = False
+                env.obs_gravity = obs
+
                 agent = AgentSimple(env, HParams(current_hp), root_path=root)
                 agent.update_env(game_context)
-                
-                name = f'{p_short}{param}_LR{lr}_Obs{obs*1}_R{rep}'
-                
+
+                name = f'{p_short}{param}_LR{lr}_Obs{obs * 1}_R{rep}'
+
                 scores, durations = agent.train(show_progress=False, name=name)
                 HD = np.max(durations)
                 MD = np.mean(durations)
