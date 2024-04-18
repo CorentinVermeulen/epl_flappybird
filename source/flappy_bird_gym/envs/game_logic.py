@@ -195,7 +195,7 @@ class FlappyBirdLogic:
         return self.gravity
 
     def _update_jumpforce(self):
-        self.jumpforce = self.PLAYER_FLAP_ACC + random.uniform(-1, 1) * self.PLAYER_FLAP_ACC_VARIANCE
+        self.jumpforce = self.PLAYER_FLAP_ACC * (1 + random.uniform(-1, 1) * self.PLAYER_FLAP_ACC_VARIANCE)
         return self.jumpforce
 
     def update_params(self, params) -> None:
