@@ -42,7 +42,7 @@ game_context = {'PLAYER_ACC_Y': 1,
 ## LEARNING PARAMETERS
 root = '../../experiments/rd_jf/'
 iters = 5
-param = [0]#, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 4]
+param = [3]# 1.0, 1.5, 1.75, 2, 2.25, 3]
 lrs = [1e-4, 1e-5]
 obss = [True, False]
 
@@ -61,7 +61,7 @@ for i in range(len(obss)):
                 env = FlappyBirdEnv()
                 env.obs_jumpforce = obss[i]
 
-                agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+                agent = AgentSimple(env, HParams(current_hp), root_path=root)
                 agent.update_env(game_context)
 
                 sed = random.randrange(0,1000)

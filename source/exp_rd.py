@@ -61,7 +61,7 @@ for i in range(len(obss)):
                 env = FlappyBirdEnv()
                 env.obs_jumpforce = obss[i]
 
-                agent = AgentSimple(FlappyBirdEnv(), HParams(current_hp), root_path=root)
+                agent = AgentSimple(env, HParams(current_hp), root_path=root)
                 agent.update_env(game_context)
 
                 sed = random.randrange(0,1000)
