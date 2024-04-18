@@ -3,15 +3,15 @@ import pandas as pd
 import numpy as np
 import torch.cuda
 import os
-from utils import HParams, make_experiment_plot
+from utils import HParams
 from agent_simple import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
 
-baseline_HP = {"EPOCHS": 750,
+baseline_HP = {"EPOCHS": 1000,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
-               "EPS_DECAY": 2500,
+               "EPS_DECAY": 2000,
                "TAU": 0.01,
                "LAYER_SIZES": [256, 256, 256, 256],
                "GAMMA": 0.99,
@@ -69,3 +69,4 @@ for obs in obss:
                     f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
                     f"- Time {int(te // 60):02}:{int(te % 60):02}"
                 )
+print("end_exp_1.py")
