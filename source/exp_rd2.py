@@ -42,7 +42,7 @@ game_context = {'PLAYER_ACC_Y': 1,
 ## LEARNING PARAMETERS
 root = '../../experiments/rd_jf/'
 iters = 5
-param = [3]# 1.0, 1.5, 1.75, 2, 2.25, 3]
+param = [3]#0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3]
 lrs = [1e-4, 1e-5]
 obss = [True, False]
 
