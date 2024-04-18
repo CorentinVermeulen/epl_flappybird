@@ -28,7 +28,7 @@ EXPERIENCE 1: Random vertical position of pipes
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': True}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/exp_1/'
+root = '../../exps/exp_1/'
 
 iters = 5
 params = [True, False]  # Jump Force

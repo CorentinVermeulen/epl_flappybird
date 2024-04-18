@@ -28,7 +28,7 @@ EXPERIENCE 2: Jump Force impact
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': True}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/exp_2/'
+root = '../../exps/exp_2/'
 
 iters = 5
 params = [0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3] # Jump Force

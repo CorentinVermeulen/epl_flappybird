@@ -28,7 +28,7 @@ EXPERIENCE 0: Baseline
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': False}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/exp_0/'
+root = '../../exps/exp_0/'
 
 iters = 5
 lrs = [1e-4, 1e-5]

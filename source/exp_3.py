@@ -28,7 +28,7 @@ EXPERIENCE 3: Gravity impact
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': True}
 
 ## LEARNING PARAMETERS
-root = '../../experiments/exp_3/'
+root = '../../exps/exp_3/'
 
 iters = 5
 params = [0, 0.25, 0.5, 0.75, 1.0, 1.5]  # Gravity
