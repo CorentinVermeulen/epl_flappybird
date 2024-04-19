@@ -37,7 +37,7 @@ p_short = 'JF'
 params2 = [0, 0.25, 0.5, 0.75, 1.0, 1.5]  # Gravity
 p_name2 = 'GRAVITY_VARIANCE'
 p_short2 = 'GR'
-lrs = [1e-4, 1e-5]
+lrs = [1e-5] # [1e-4, 1e-5]
 obss = [True, False]
 n = iters * len(params) * len(lrs) * len(obss) * len(params2)
 print(f"Python script root: {os.getcwd()}")

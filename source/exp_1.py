@@ -35,38 +35,37 @@ params = [True, False]  # Jump Force
 p_name = 'pipes_are_random'
 p_short = 'PAR'
 lrs = [1e-4, 1e-5]
-obss = [True, False]
-n = iters * len(params) * len(lrs) * len(obss)
+n = iters * len(params) * len(lrs)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
-for obs in obss:
-    for lr in lrs:
-        for param in params:
-            current_hp = baseline_HP.copy()
-            current_hp.update({"LR": lr})
-            game_context.update({p_name: param})
-            for rep in range(iters):
-                t = time.perf_counter()
 
-                env = FlappyBirdEnv()
-                env.obs_jumpforce = False
-                env.obs_gravity = False
+for lr in lrs:
+    for param in params:
+        current_hp = baseline_HP.copy()
+        current_hp.update({"LR": lr})
+        game_context.update({p_name: param})
+        for rep in range(iters):
+            t = time.perf_counter()
 
-                agent = AgentSimple(env, HParams(current_hp), root_path=root)
-                agent.update_env(game_context)
+            env = FlappyBirdEnv()
+            env.obs_jumpforce = False
+            env.obs_gravity = False
 
-                name = f'{p_short}{param}_LR{lr}_Obs{obs * 1}_R{rep}'
+            agent = AgentSimple(env, HParams(current_hp), root_path=root)
+            agent.update_env(game_context)
 
-                scores, durations = agent.train(show_progress=False, name=name)
-                HD = np.max(durations)
-                MD = np.mean(durations)
-                MD_last = np.mean(durations[-250:])
-                te = time.perf_counter() - t
-                print(
-                    f"{name}\n"
-                    f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
-                    f"- Time {int(te // 60):02}:{int(te % 60):02}"
-                )
+            name = f'{p_short}{param}_LR{lr}_R{rep}'
+
+            scores, durations = agent.train(show_progress=False, name=name)
+            HD = np.max(durations)
+            MD = np.mean(durations)
+            MD_last = np.mean(durations[-250:])
+            te = time.perf_counter() - t
+            print(
+                f"{name}\n"
+                f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
+                f"- Time {int(te // 60):02}:{int(te % 60):02}"
+            )
 print("end_exp_1.py")

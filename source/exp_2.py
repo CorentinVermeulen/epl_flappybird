@@ -31,34 +31,36 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 root = '../../exps/exp_2/'
 
 iters = 5
-params = [0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3] # Jump Force
+# params = [0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3] # Jump Force
+params = [0.5, 1.0, 1.5, 2, 2.5]  # Jump Force
+
 p_name = 'PLAYER_FLAP_ACC_VARIANCE'
 p_short = 'JF'
-lrs = [1e-4, 1e-5]
-obss = [True, False]
+lrs = [1e-5, 1e-4]  # [1e-4, 1e-5]
+obss = [False, True]
 n = iters * len(params) * len(lrs) * len(obss)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
 for obs in obss:
-    for lr in lrs:
-        for param in params:
+    for param in params:
+        for lr in lrs:
             current_hp = baseline_HP.copy()
             current_hp.update({"LR": lr})
             game_context.update({p_name: param})
             for rep in range(iters):
                 t = time.perf_counter()
-                
+
                 env = FlappyBirdEnv()
                 env.obs_jumpforce = obs
                 env.obs_gravity = False
-                
+
                 agent = AgentSimple(env, HParams(current_hp), root_path=root)
                 agent.update_env(game_context)
-                
-                name = f'{p_short}{param}_LR{lr}_Obs{obs*1}_R{rep}'
-                
+
+                name = f'{p_short}{param}_LR{lr}_Obs{obs * 1}_R{rep}'
+
                 scores, durations = agent.train(show_progress=False, name=name)
                 HD = np.max(durations)
                 MD = np.mean(durations)
@@ -68,5 +70,5 @@ for obs in obss:
                     f"{name}\n"
                     f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
                     f"- Time {int(te // 60):02}:{int(te % 60):02}"
-                )
+                    )
 print("end_exp_2.py")
