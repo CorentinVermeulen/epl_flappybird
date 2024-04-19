@@ -148,12 +148,11 @@ def main(root, params_under_study, res, half=True, half_grouped=True):
             plot_cumsum_by(df, comb, 'Average duration by ' + ', '.join(comb), half=half, half_grouped=half_grouped)
         with(open(f'{root}/results.txt', 'w')) as file:
             file.write(res)
-        print(f"Results saved in {root}/results.txt")
+    print(f"Results saved in {root}/results.txt")
 
 if __name__ == '__main__':
-    root = '../../experiments/C_or_tau/'
-    params_under_study = [("TAU", False),
-                          ("UPDATE_TARGETNET_RATE", False)
+    root = '../../exps/exp_0/'
+    params_under_study = [("LR", False),
                           ]
     # res = "Gridsearch\n"
     res = "Experiment results about " + ', '.join([p[0] for p in params_under_study]).lower() + ":\n"

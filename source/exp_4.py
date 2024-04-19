@@ -73,3 +73,4 @@ for obs in obss:
                         f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
                         f"- Time {int(te // 60):02}:{int(te % 60):02}"
                     )
+print("end_exp_4.py")
