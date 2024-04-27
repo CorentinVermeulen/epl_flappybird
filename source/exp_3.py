@@ -31,19 +31,21 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 root = '../../exps/exp_3/'
 
 iters = 5
-params = [0, 0.25, 0.5, 0.75, 1.0, 1.5]  # Gravity
+#params = [0.25, 0.5, 1.0, 1.5]  # Gravity
+params = [0.5]
 p_name = 'GRAVITY_VARIANCE'
 p_short = 'GR'
-lrs = [1e-5] # [1e-4, 1e-5]
-obss = [True, False]
+lrs = [1e-4, 1e-5] # [1e-4, 1e-5]
+#obss = [True, False]
+obss = [True]
 n = iters * len(params) * len(lrs) * len(obss)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
-for obs in obss:
-    for lr in lrs:
-        for param in params:
+for param in params:
+    for obs in obss:
+        for lr in lrs:
             current_hp = baseline_HP.copy()
             current_hp.update({"LR": lr})
             game_context.update({p_name: param})

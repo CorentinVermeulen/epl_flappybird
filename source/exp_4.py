@@ -44,10 +44,10 @@ print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
 print("Device cuda? ", torch.cuda.is_available())
 
-for obs in obss:
-    for lr in lrs:
-        for param in params:
-            for param2 in params2:
+for param in params:
+    for param2 in params2:
+        for obs in obss:
+            for lr in lrs:
                 current_hp = baseline_HP.copy()
                 current_hp.update({"LR": lr})
                 game_context.update({p_name: param, p_name2: param2})
