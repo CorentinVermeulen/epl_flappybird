@@ -48,6 +48,20 @@ def create_duration_dataset(root, params):
     df.columns = pd.MultiIndex.from_tuples(values, names=names)
     return df
 
+def get_df(root, params_under_study, filtres):
+    params = extract_params(root, params_under_study)
+    df = create_duration_dataset(root, params)
+    if len(filtres) > 0:
+        for filtre in filtres:
+            var = filtre[0]
+            value = filtre[1]
+            df = df.loc[:, df.columns.get_level_values(var) == value]
+    return df
+
+def convert_to_cumsum_df(df):
+    cs = np.cumsum(df, axis=0)
+    cs = cs.apply(lambda x: x / (x.index + 1))
+    return cs
 
 def get_mean_by(df, bys, top_k=10):
     out = '\n--------------------------------\n'
@@ -64,7 +78,6 @@ def get_mean_by(df, bys, top_k=10):
         out += sorted_mean_by.to_string()
     return out
 
-
 def get_all_combinations(params):
     all_combinations = []
     for r in range(1, len(params) + 1):
@@ -74,12 +87,10 @@ def get_all_combinations(params):
 
     return all_combinations
 
-
-def convert_to_cumsum_df(df):
-    cs = np.cumsum(df, axis=0)
-    cs = cs.apply(lambda x: x / (x.index + 1))
-    return cs
-
+def get_comb(params_under_study):
+    pnames = [p for p in params_under_study]
+    combs = [[]] + get_all_combinations(pnames)
+    return combs
 
 def plot_average_by(df, bys, title, top_k=10, half=False, half_grouped=False):
     colors = mcolors.TABLEAU_COLORS
@@ -96,7 +107,7 @@ def plot_average_by(df, bys, title, top_k=10, half=False, half_grouped=False):
 
     sorted_mean = mean.iloc[-1, :].sort_values(ascending=False)
     top_params = sorted_mean.head(min(len(sorted_mean), top_k)).index
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(16, 8))
     for i, param in enumerate(top_params):
         if len(bys) > 1:
             label = ' - '.join([f"{p}:{b}" for p, b in zip(bys, param)])
@@ -126,66 +137,69 @@ def plot_average_by(df, bys, title, top_k=10, half=False, half_grouped=False):
     plt.title(title)
     plt.xlabel('Games played')
     plt.ylabel('Duration')
-    file_name = "plot_" + '_'.join(bys) + '.png'
+    file_name = '_'.join(bys) + "_avgplot" + '.png'
     plt.savefig(f"{root}/{file_name}")
     print(f"Results saved in {root}/{file_name}")
-    plt.show()
+    #plt.show()
+    plt.close()
 
+def plot_metrics(res, bys, title, ylabel):
+    plt.figure(figsize=(16, 8))
+    for col in res.columns:
+        if len(bys) > 1:
+            label = ' - '.join([f"{p}: {b}" for p, b in zip(bys, col)])
+        else:
+            label = f"{bys[0]}: {col}"
+        plt.plot(res.index, res[col], label=label)
+    plt.legend()
+    plt.title(title)
+    plt.xlabel('X')
+    plt.ylabel(ylabel)
+    filename = '_'.join(bys) + f"_{title}"  + '.png'
+    plt.savefig(f"{root}/{filename}")
+    #plt.show()
+    print(f"Results saved in {root}/{filename}")
+    plt.close()
 
-## LVI
-"""
-Learning velocity index
-Measures the number of games required to reach X% of the maximum duration on the average duration curve
-"""
-
-
-def LVI(df, bys, X=0.5, on_cumsum=True):
-    maxs = df.groupby(bys, axis=1).max().max()
+def DSP(df, params_under_study, on_cumsum=True):
+    maxs = df.groupby(params_under_study, axis=1).max().max()
     dfc = convert_to_cumsum_df(df)
-    grouped = dfc.groupby(bys, axis=1)
-    mean = grouped.mean()
+    grouped = dfc.groupby(params_under_study, axis=1)
+    g_mean = grouped.mean()
+
+    res = pd.DataFrame(columns=maxs.index,
+                       index=np.arange(start=0.1, stop=1, step=0.1),
+                       data=np.zeros((len(np.arange(start=0.1, stop=1, step=0.1)), len(maxs.index))))
+
     if on_cumsum:
-        maxs = mean.max()
-    mid_values = maxs * X
-    out = mean[mean > mid_values].idxmin()
-    return out
+        maxs = g_mean.max()
 
+    for X in np.arange(start=0.1, stop=1, step=0.1):
+        mid_values = maxs * X
+        res.loc[X, :] = g_mean[g_mean > mid_values].count() / len(g_mean)
 
-## DSP
-"""
-Duration surpass proportion
-Measures the proportion of games that surpass the X% of the maximum duration on the average duration curve
-"""
+    plot_metrics(res, bys=params_under_study, title='DSP', ylabel='Percentage of games')
+    return res
 
-
-def DSP(df, bys, X=0.5, on_cumsum=True):
-    maxs = df.groupby(bys, axis=1).max().max()
+def LVI(df, params_under_study, on_cumsum=True):
+    maxs = df.groupby(params_under_study, axis=1).max().max()
     dfc = convert_to_cumsum_df(df)
-    grouped = dfc.groupby(bys, axis=1)
-    mean = grouped.mean()
+    grouped = dfc.groupby(params_under_study, axis=1)
+    g_mean = grouped.mean()
+
+    res = pd.DataFrame(columns=maxs.index,
+                       index=np.arange(start=0.1, stop=1, step=0.1),
+                       data=np.zeros((len(np.arange(start=0.1, stop=1, step=0.1)), len(maxs.index))))
+
     if on_cumsum:
-        maxs = mean.max()
-    mid_values = maxs * X
-    out = mean[mean > mid_values].count() / len(mean)
-    return out
+        maxs = g_mean.max()
 
+    for X in np.arange(start=0.1, stop=1, step=0.1):
+        mid_values = maxs * X
+        res.loc[X, :] = g_mean[g_mean > mid_values].idxmin()
 
-def get_comb(params_under_study):
-    pnames = [p for p in params_under_study]
-    combs = [[]] + get_all_combinations(pnames)
-    return combs
-
-
-def get_df(root, params_under_study, filtres):
-    params = extract_params(root, params_under_study)
-    df = create_duration_dataset(root, params)
-    if len(filtres) > 0:
-        for filtre in filtres:
-            var = filtre[0]
-            value = filtre[1]
-            df = df.loc[:, df.columns.get_level_values(var) == value]
-    return df
-
+    plot_metrics(res, bys=params_under_study, title='LVI', ylabel='Games played')
+    return res
 
 def main_plot(df, combs):
     df = convert_to_cumsum_df(df)
@@ -193,38 +207,37 @@ def main_plot(df, combs):
         if len(comb) > 0:
             plot_average_by(df, comb, 'Average duration by ' + ', '.join(comb))
 
-
-def main_results(df, combs, X=0.5, on_cumsum=True):
+def main_results(df, combs, on_cumsum=True):
     df_cumsum = convert_to_cumsum_df(df)
     res_txt = "\n"
     for comb in combs:
         res_mean_duration = get_mean_by(df_cumsum, comb, top_k=10)
         res_txt += res_mean_duration
         if len(comb) > 0:
-            res_txt += f"\n\t---LVI {X} ---\n" + str(LVI(df, comb, X=X, on_cumsum=on_cumsum).to_string())
-            res_txt += f"\n\t---DSP {X} ---\n" + str(DSP(df, comb, X=X, on_cumsum=on_cumsum).to_string())
+            res_txt += f"\n\t---LVI ---\n" + str(LVI(df, comb, on_cumsum=on_cumsum).to_string())
+            res_txt += f"\n\t---DSP ---\n" + str(DSP(df, comb, on_cumsum=on_cumsum).to_string())
 
     with open(f'{root}/results.txt', 'w') as file:
         file.write(res_txt)
     print(f"Results saved in {root}/results.txt")
 
 
-def main(root, params_under_study, filtres = [], X=0.5, on_cumsum=True):
+def main(root, params_under_study, filtres = [], on_cumsum=True):
     combs = get_comb(params_under_study)
     df = get_df(root, params_under_study, filtres=filtres)
     main_plot(df, combs)
-    main_results(df, combs, X=X, on_cumsum=on_cumsum)
+    main_results(df, combs, on_cumsum=on_cumsum)
 
 
 
 if __name__ == '__main__':
-    root = '../../exps/exp_2/'
+    root = ('../../exps/exp_2')
     params_under_study = [
         "LR",
         "PLAYER_FLAP_ACC_VARIANCE",
-        "Obs jumpforce",
+        'Obs jumpforce',
     ]
     filtres = [('Obs jumpforce', 'False')]
 
-    main(root, params_under_study, filtres=filtres, X=0.5, on_cumsum=True)
+    main(root, params_under_study, filtres=filtres, on_cumsum=False)
 
