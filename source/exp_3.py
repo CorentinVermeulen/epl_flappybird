@@ -31,13 +31,12 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 root = '../../exps/exp_3/'
 
 iters = 5
-#params = [0.25, 0.5, 1.0, 1.5]  # Gravity
-params = [0.5]
+params = [0.25, 0.5, 1.0, 1.5]
 p_name = 'GRAVITY_VARIANCE'
 p_short = 'GR'
-lrs = [1e-4, 1e-5] # [1e-4, 1e-5]
+lrs = [1e-5] # [1e-4, 1e-5]
 #obss = [True, False]
-obss = [True]
+obss = [True, False]
 n = iters * len(params) * len(lrs) * len(obss)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
