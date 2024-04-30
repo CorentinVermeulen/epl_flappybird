@@ -118,7 +118,7 @@ class AgentSimple():
     def train(self, name=None, show_progress=False):
         t = time.perf_counter()
         self.set_training_id(name)
-
+        self.memory_full = False
         best_score = 0
         best_duration = 0
         scores = []
@@ -141,6 +141,8 @@ class AgentSimple():
                 next_state = None if done else observation
                 # Push to memory
                 self.memory.push(state, action.to(self.device), next_state, reward)
+                if len(self.memory) > self.hparams.MEMORY_SIZE:
+                    self.memory_full = i_episode
                 # Move to the next state
                 state = next_state
                 # Perform one step of the optimization
