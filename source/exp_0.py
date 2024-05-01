@@ -33,7 +33,8 @@ game_context = {'PLAYER_FLAP_ACC': -5,
 root = '../../exps/exp_0/'
 
 iters = 5
-lrs = [1e-4, 1e-5]
+
+lrs = [1e-05]
 n = iters * len(lrs)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
