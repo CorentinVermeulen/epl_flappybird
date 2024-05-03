@@ -29,7 +29,6 @@ def extract_params(root, params_list):
                     params[dir_name] = d
     return params
 
-
 def create_duration_dataset(root, params):
     df = pd.DataFrame()
     for dir_name, param in params.items():
@@ -157,11 +156,14 @@ def plot_metrics(res, bys, title, ylabel):
     plt.ylabel(ylabel)
     filename = '_'.join(bys) + f"_{title}"  + '.png'
     plt.savefig(f"{root}/{filename}")
-    #plt.show()
+    plt.show()
     print(f"Results saved in {root}/{filename}")
     plt.close()
 
-def DSP(df, params_under_study, on_cumsum=True):
+def DSP_avgcurve(df, params_under_study, on_cumsum=True):
+    """
+    proportion of the avg curve above the threshold value
+    """
     maxs = df.groupby(params_under_study, axis=1).max().max()
     dfc = convert_to_cumsum_df(df)
     grouped = dfc.groupby(params_under_study, axis=1)
@@ -180,6 +182,81 @@ def DSP(df, params_under_study, on_cumsum=True):
 
     plot_metrics(res, bys=params_under_study, title='DSP', ylabel='Percentage of games')
     return res
+
+def DSP_count(df, params_under_study):
+    """
+    proportion of games with a duration above the threshokld value
+    """
+    df = df.sort_index(axis=1)
+    maxs = df.groupby(params_under_study, axis=1).max().max()
+    res = pd.DataFrame(columns=df.columns,
+                       index=np.arange(start=0.1, stop=1, step=0.1),
+                       data=np.zeros((len(np.arange(start=0.1, stop=1, step=0.1)), len(df.columns))))
+    res = res.sort_index(axis=1)
+    for X in np.arange(start=0.1, stop=1, step=0.1):
+        mid_values = maxs * X
+        for col in df.columns:
+            if len(col) == 1:
+                col = col[0]
+            val = df[col][df[col] > mid_values[col]].count()
+            res.loc[X, col] = val / len(df)
+
+    mean = res.groupby(params_under_study, axis=1).mean()
+    std = res.groupby(params_under_study, axis=1).std()
+
+
+    plot_perfs(mean, std, params_under_study, 'DSP', ylabel='Percentage of games')
+
+    return mean, std
+
+def LVI_2(df, params_under_study, on_cumsum=True):
+    """
+    proportion of games with a duration above the threshokld value
+    on_cumsum: if True, the max value if computed on the mean average cumsum instead of all the cumsum
+    """
+    df = df.sort_index(axis=1)
+    df = convert_to_cumsum_df(df)
+    maxs = df.groupby(params_under_study, axis=1).max().max()
+    if on_cumsum:
+        maxs = df.groupby(params_under_study, axis=1).mean().max()
+    res = pd.DataFrame(columns=df.columns,
+                       index=np.arange(start=0.1, stop=1, step=0.1),
+                       data=np.zeros((len(np.arange(start=0.1, stop=1, step=0.1)), len(df.columns))))
+    for row, X in enumerate(np.arange(start=0.1, stop=1, step=0.1)):
+        mid_values = maxs * X
+        for i, col in enumerate(df.columns):
+            col = df.iloc[:,i]
+            threshold = mid_values[col.name]
+            val = (col > threshold).idxmax()
+            res.iloc[row,i] = val if val > 0 else np.nan
+    #res = res.fillna(1000)
+    mean = res.groupby(params_under_study, axis=1).mean()
+    std = res.groupby(params_under_study, axis=1).std()
+
+    plot_perfs(mean, std, params_under_study, 'LVI', ylabel='Number of games')
+
+    return mean, std
+
+def plot_perfs(mean, std ,params_under_study,  title,  ylabel):
+
+    plt.figure(figsize=(16, 8))
+    for col in mean.columns:
+        if len(params_under_study) > 1:
+            label = ' - '.join([f"{p}: {b}" for p, b in zip(params_under_study, col)])
+        else:
+            label = f"{params_under_study[0]}: {col}"
+        plt.plot(mean.index, mean[col], label=label)
+        upper_ic = mean[col] + 1.96 * std[col] / np.sqrt(len(std))
+        lower_ic = mean[col] - 1.96 * std[col] / np.sqrt(len(std))
+
+        plt.fill_between(mean.index, upper_ic, lower_ic, alpha=0.4)
+    plt.legend()
+    plt.title(title)
+    plt.xlabel('Fraction of max duration')
+    plt.ylabel(ylabel)
+    filename = '_'.join(params_under_study) + f"_{title}" + '.png'
+    plt.savefig(f"{root}/{filename}.png")
+    plt.show()
 
 def LVI(df, params_under_study, on_cumsum=True):
     maxs = df.groupby(params_under_study, axis=1).max().max()
@@ -215,7 +292,7 @@ def main_results(df, combs, on_cumsum=True):
         res_txt += res_mean_duration
         if len(comb) > 0:
             res_txt += f"\n\t---LVI ---\n" + str(LVI(df, comb, on_cumsum=on_cumsum).to_string())
-            res_txt += f"\n\t---DSP ---\n" + str(DSP(df, comb, on_cumsum=on_cumsum).to_string())
+            res_txt += f"\n\t---DSP ---\n" + str(DSP_avgcurve(df, comb, on_cumsum=on_cumsum).to_string())
 
     with open(f'{root}/results.txt', 'w') as file:
         file.write(res_txt)
@@ -233,11 +310,14 @@ def main(root, params_under_study, filtres = [], on_cumsum=True):
 if __name__ == '__main__':
     root = ('../../exps/exp_2')
     params_under_study = [
-        "LR",
         "PLAYER_FLAP_ACC_VARIANCE",
-        'Obs jumpforce',
     ]
-    filtres = [('Obs jumpforce', 'False')]
+    filtres = []
 
-    main(root, params_under_study, filtres=filtres, on_cumsum=False)
+    #main(root, params_under_study, filtres=filtres, on_cumsum=False)
+
+
+    df = get_df(root, params_under_study, filtres=filtres)
+    plot_average_by(df, ['PLAYER_FLAP_ACC_VARIANCE'], 'Average duration by PLAYER_FLAP_ACC_VARIANCE', top_k=10, half=True, half_grouped=False)
+
 
