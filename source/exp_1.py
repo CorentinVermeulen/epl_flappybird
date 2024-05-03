@@ -31,7 +31,7 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 root = '../../exps/exp_1/'
 
 iters = 3
-params = [True, False]
+params = [True]
 p_name = 'pipes_are_random'
 p_short = 'PAR'
 lrs = [1e-5]
