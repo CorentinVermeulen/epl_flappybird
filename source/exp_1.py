@@ -34,7 +34,7 @@ iters = 3
 params = [True, False]
 p_name = 'pipes_are_random'
 p_short = 'PAR'
-lrs = [1e-4, 1e-5]
+lrs = [1e-5]
 n = iters * len(params) * len(lrs)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
