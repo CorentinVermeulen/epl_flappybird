@@ -36,7 +36,7 @@ p_name = 'GRAVITY_VARIANCE'
 p_short = 'GR'
 lrs = [1e-5] # [1e-4, 1e-5]
 #obss = [True, False]
-obss = [True, False]
+obss = [False]
 n = iters * len(params) * len(lrs) * len(obss)
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {n} experiments at {root}")
