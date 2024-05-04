@@ -18,7 +18,7 @@ large_size = (11, 5.5)
 square_size = (5.5, 5.5)
 
 def make_out_root(root):
-    out_root = f"{root}/results"
+    out_root = f"{root}all_results"
     if not os.path.exists(out_root):
         os.mkdir(out_root)
     return out_root
@@ -58,6 +58,9 @@ def get_stacked_df(root, params_under_study):
                 df = pd.DataFrame(columns=["id", "t"] + params_under_study + ["loss", "duration"])
                 try:
                     data = pd.read_csv(os.path.join(root, dir_name, file))
+                    if len(data) < 1000:
+                        print(f"File {file} in {dir_name} has less than 1000 rows. ({len(data)})")
+
                 except:
                     print(f"Error reading file {file} in {dir_name}.")
                     continue
@@ -330,20 +333,20 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
 
 # ============================================================================= #
 
-root = '../../exps/exp_1_bis/'
+root = '../../exps/exp_1_f/'
 prefix = 'EXP1'
 out_root = make_out_root(root)
 
-params_under_study = ['pipes_are_random', 'LR', 'Obs gravity', 'Obs jumpforce'] #
+params_under_study = ['pipes_are_random'] #
 
 bys = params_under_study
 
 t = time.perf_counter()
 df = get_stacked_df(root, params_under_study)
 
-df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
+#df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
 
-ndf = normalize_stacked_df(df, bys=[bys[0]])
+#ndf = normalize_stacked_df(df, bys=[bys[0]])
 #dfc = remove_bad_id(df)
 dfc = df.copy()
 print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
