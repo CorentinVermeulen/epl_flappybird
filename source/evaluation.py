@@ -18,6 +18,8 @@ large_size = (11, 5.5)
 square_size = (5.5, 5.5)
 
 def make_out_root(root):
+    if root[-1] != '/':
+        root += '/'
     out_root = f"{root}all_results"
     if not os.path.exists(out_root):
         os.mkdir(out_root)
@@ -306,7 +308,8 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
         over['X'] = X
         plot_df = pd.concat([plot_df, over])
 
-    plot_df.replace(0, 1000, inplace=True)
+    #plot_df.replace(0, 1000, inplace=True)
+    plot_df = plot_df[plot_df["LVI"] != 1000]
     order = np.sort(plot_df[bys[0]].unique())
     plt.figure(figsize=large_size)
     sns.lineplot(data=plot_df,
@@ -333,11 +336,11 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
 
 # ============================================================================= #
 
-root = '../../exps/exp_1_f/'
-prefix = 'EXP1'
+root = '../../exps/exp_2_f/'
+prefix = 'EXP2'
 out_root = make_out_root(root)
 
-params_under_study = ['pipes_are_random'] #
+params_under_study = ['PLAYER_FLAP_ACC_VARIANCE'] #
 
 bys = params_under_study
 
@@ -352,26 +355,26 @@ dfc = df.copy()
 print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
 
 
-t = time.perf_counter()
-avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
-print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
-
-t = time.perf_counter()
-running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
-print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
-
-t = time.perf_counter()
-mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
-
-t = time.perf_counter()
-n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
-
-t = time.perf_counter()
-dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
-
+# t = time.perf_counter()
+# avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
+# print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
+#
+# t = time.perf_counter()
+# running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
+# print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
+#
+# t = time.perf_counter()
+# mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+# print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
+#
+# t = time.perf_counter()
+# n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+# print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
+#
+# t = time.perf_counter()
+# dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+# print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
+#
 # t = time.perf_counter()
 # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
 # #lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')

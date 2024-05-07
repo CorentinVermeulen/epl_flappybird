@@ -316,6 +316,28 @@ class AgentSimple():
     def update_env(self, dic):
         self.env.update_params(dic)
 
+    def test(self, policy_path, n_episodes=100, render=False):
+        self.policy_net.load_state_dict(torch.load(policy_path, map_location=torch.device('cpu')))
+        self.policy_net.eval()
+        durations = []
+        for n in range(n_episodes):
+            state = self.env.reset()
+            state = self._process_state(state)
+            for t in count():
+                action = self.policy_net(state).max(1)[1].view(1, 1)
+                observation, reward, done, info = self.env.step(action.item())
+                observation = self._process_state(observation)
+                state = observation
+                if render:
+                    self.env.render()
+                if done:
+                    durations.append(t + 1)
+                    break
+        self.env.close()
+        return durations
+
+
+
 if __name__ == "__main__":
 
     baseline_HP = {"EPOCHS": 1000,
