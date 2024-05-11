@@ -30,8 +30,8 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 ## LEARNING PARAMETERS
 root = '../../exps/exp_3/'
 
-iters = 5
-params = [0.25, 0.5, 1.0, 1.5]
+iters = 15
+params = [2, 3, 4]
 p_name = 'GRAVITY_VARIANCE'
 p_short = 'GR'
 lrs = [1e-5] # [1e-4, 1e-5]
