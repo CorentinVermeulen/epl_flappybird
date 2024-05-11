@@ -32,7 +32,7 @@ def rename_results(out_root, prefix):
                 new_name = f'{prefix}_{file}'
                 os.rename(f'{out_root}/{file}', f'{out_root}/{new_name}')
 
-def get_stacked_df(root, params_under_study):
+def get_stacked_df(root, params_under_study, out_root):
     def extract_params(root, params_list):
         params = {}
         for dir_name in os.listdir(root):
@@ -76,7 +76,19 @@ def get_stacked_df(root, params_under_study):
                     for p in params_under_study:
                         df[p] = param[p]
                     out_df = pd.concat([out_df, df])
+    # Save to csv
+    out_df.to_csv(f'{out_root}/stacked_df.csv', index=False)
     return out_df
+
+def select_best_id(df, var, n=5):
+    il = len(df)
+    # For every var, I will only keep the best n ids
+    best_ids = df[['id', var, 'duration']].groupby(['id', var]).mean().reset_index()
+    best_ids = best_ids.sort_values(by='duration', ascending=False).groupby(var).head(n)
+    best_df = df[df['id'].isin(best_ids['id'])]
+    ol = len(best_df)
+    print(f"Reduced from {il} to {ol} rows.")
+    return best_df
 
 def normalize_stacked_df(df, bys):
     ndf = df.copy()
@@ -335,55 +347,56 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
 
 
 # ============================================================================= #
+if __name__ == '__main__':
+    iexp = 3
+    root = f'../../exps/exp_{iexp}_f/'
+    prefix = f'EXP{iexp}'
+    out_root = make_out_root(root)
 
-root = '../../exps/exp_2_f/'
-prefix = 'EXP2'
-out_root = make_out_root(root)
+    params_under_study = ['GRAVITY_VARIANCE']
 
-params_under_study = ['PLAYER_FLAP_ACC_VARIANCE'] #
+    bys = params_under_study
 
-bys = params_under_study
+    t = time.perf_counter()
+    df = get_stacked_df(root, params_under_study, out_root)
+    df = select_best_id(df, bys[0], n=5)
+    #df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
 
-t = time.perf_counter()
-df = get_stacked_df(root, params_under_study)
-
-#df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
-
-#ndf = normalize_stacked_df(df, bys=[bys[0]])
-#dfc = remove_bad_id(df)
-dfc = df.copy()
-print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
-
-
-# t = time.perf_counter()
-# avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
-# print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
-#
-# t = time.perf_counter()
-# running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
-# print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
-#
-# t = time.perf_counter()
-# mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-# print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
-#
-# t = time.perf_counter()
-# n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-# print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
-#
-# t = time.perf_counter()
-# dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-# print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
-#
-# t = time.perf_counter()
-# lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
-# #lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
-# print(f"Plot 6 done in {time.perf_counter() - t:.2f} seconds.")
-
-t = time.perf_counter()
-lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
-#lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
-print(f"Plot 7 done in {time.perf_counter() - t:.2f} seconds.")
+    #ndf = normalize_stacked_df(df, bys=[bys[0]])
+    #dfc = remove_bad_id(df)
+    dfc = df.copy()
+    print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
 
 
-rename_results(out_root, prefix)
+    t = time.perf_counter()
+    avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
+    print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
+
+    t = time.perf_counter()
+    running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
+    print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
+
+    t = time.perf_counter()
+    mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+    print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
+
+    t = time.perf_counter()
+    n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+    print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
+
+    t = time.perf_counter()
+    dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+    print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
+
+    # # t = time.perf_counter()
+    # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
+    # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
+    # #print(f"Plot 6 done in {time.perf_counter() - t:.2f} seconds.")
+
+    t = time.perf_counter()
+    lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
+    #lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
+    print(f"Plot 7 done in {time.perf_counter() - t:.2f} seconds.")
+
+
+    rename_results(out_root, prefix)
