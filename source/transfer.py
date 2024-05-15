@@ -176,9 +176,9 @@ def make_plots(dfi, xlabel="Jump Force Variance"):
 
 vars = [
     ('baseline', 'Baseline'),
-    ('pipes_are_random', 'Random pipes'),
-    ('PLAYER_FLAP_ACC_VARIANCE', 'Jump Force Variance'),
-    ('GRAVITY_VARIANCE', 'Gravity Variance'),
+    ('Random_pipes', 'Random pipes'),
+    ('Jump_Force_k', 'Jump Force Variance'),
+    ('Gravity_k', 'Gravity Variance'),
 ]
 for i in range(1,4):
     root = f'../../exps/exp_{i}_f/'

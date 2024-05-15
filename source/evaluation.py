@@ -3,6 +3,20 @@ from tqdm import tqdm
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+tex_fonts = {
+    # Use LaTeX to write all text
+    "text.usetex": True,
+    "font.family": "serif",
+    # Use 10pt font in plots, to match 10pt font in document
+    "axes.labelsize": 12,
+    "font.size": 12,
+    # Make the legend/label fonts a little smaller
+    "legend.fontsize": 10,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10
+}
+
+plt.rcParams.update(tex_fonts)
 import matplotlib.colors as mcolors
 import scipy.stats as stats
 import plotly.express as px
@@ -15,6 +29,7 @@ import itertools
 sns.set_context("paper")
 sns.set_style("whitegrid")
 large_size = (11, 5.5)
+small_size = (7, 3.5)
 square_size = (5.5, 5.5)
 
 def make_out_root(root):
@@ -27,7 +42,7 @@ def make_out_root(root):
 
 def rename_results(out_root, prefix):
     for file in os.listdir(out_root):
-        if file.endswith('.png'):
+        if file.endswith('.pdf'):
             if prefix not in file:
                 new_name = f'{prefix}_{file}'
                 os.rename(f'{out_root}/{file}', f'{out_root}/{new_name}')
@@ -125,16 +140,31 @@ def avg_plot(df, out_root, bys, plot_args={}, name=None):
     out_name = 'avg_plot'
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     ##plt.show()
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=df,
+                 x='t',
+                 y='cumsum',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    plt.xlabel('Games played')
+    plt.ylabel('Duration')
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'avg_plot'
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
 
 
 def running_mean_plot(idf, bys, out_root, plot_args={}, name=None):
     df = idf.copy()
     df = df.dropna()
-    plt.figure(figsize=large_size)
     order = np.sort(df[bys[0]].unique())
 
+    plt.figure(figsize=large_size)
     sns.lineplot(data=df,
                  x='t',
                  y='running_mean',
@@ -148,8 +178,23 @@ def running_mean_plot(idf, bys, out_root, plot_args={}, name=None):
     out_name = 'running_mean_plot'
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     ##plt.show()
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=df,
+                 x='t',
+                 y='running_mean',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    plt.xlabel('Games played')
+    plt.ylabel('Duration')
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'running_mean_plot'
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
 
 
 # 2 MEAN DURATION BOXPLOT
@@ -178,7 +223,7 @@ def mean_dur_boxplot(idf, bys, out_root, plot_args={}, name=None):
     out_name = 'mean_dur_boxplot'
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     ##plt.show()
 
 
@@ -216,7 +261,7 @@ def n_max_boxplot(idf, bys, out_root, plot_args={}, name=None, normalized_max=Fa
     out_name = 'n_max_boxplot'
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     ##plt.show()
 
 
@@ -239,6 +284,7 @@ def dsp_plot(idf, bys, out_root, plot_args={}, name=None, normalized_max=False):
         n_over['X'] = X
         plot_df = pd.concat([plot_df, n_over])
     order = np.sort(plot_df[bys[0]].unique())
+
     plt.figure(figsize=large_size)
     sns.lineplot(data=plot_df,
                  x='X',
@@ -257,8 +303,28 @@ def dsp_plot(idf, bys, out_root, plot_args={}, name=None, normalized_max=False):
     out_name = 'dsp_plot'
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     #plt.show()
+
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='DSP',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    xlabel = "Proportion of maximum duration"
+    if normalized_max:
+        xlabel = "Proportion of normalized maximum duration"
+    plt.xlabel(xlabel)
+    plt.ylabel('DSP')
+    plt.ylim(0, 1)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'dsp_plot'
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
 
 
 def lvi_prepross(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='cumsum'):
@@ -298,7 +364,7 @@ def lvi_prepross(idf, bys, out_root, plot_args={}, name=None, normalized_max=Fal
     out_name = 'lvi_pre_plot_' + var
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     #plt.show()
 
 def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='cumsum'):
@@ -320,8 +386,9 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
         over['X'] = X
         plot_df = pd.concat([plot_df, over])
 
-    #plot_df.replace(0, 1000, inplace=True)
     plot_df = plot_df[plot_df["LVI"] != 1000]
+    plot_df.replace(0, 1000, inplace=True)
+
     order = np.sort(plot_df[bys[0]].unique())
     plt.figure(figsize=large_size)
     sns.lineplot(data=plot_df,
@@ -341,62 +408,88 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, normalized_max=False, var='
     out_name = 'lvi_plot_' + var
     if name:
         out_name = f'{out_name}_{name}'
-    plt.savefig(f'{out_root}/{out_name}.png')
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     #plt.show()
 
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='LVI',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    xlabel = "Proportion of maximum duration"
+    if normalized_max:
+        xlabel = "Proportion of normalized maximum duration"
+    plt.xlabel(xlabel)
+    plt.ylabel("Number of games")
+    plt.ylim(0, 1000)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'lvi_plot_' + var
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
 
 
 # ============================================================================= #
 if __name__ == '__main__':
-    iexp = 3
-    root = f'../../exps/exp_{iexp}_f/'
-    prefix = f'EXP{iexp}'
-    out_root = make_out_root(root)
+    iexps = [3]
+    for iexp  in iexps:
+        root = f'../../exps/exp_{iexp}_f/'
+        prefix = f'EXP{iexp}'
+        out_root = make_out_root(root)
 
-    params_under_study = ['GRAVITY_VARIANCE']
+        params_list = [
+            ["Random_pipes"],
+            ["Random_pipes"],
+            ["Jump_Force_k"],
+            ["Gravity_k"]
+                ]
 
-    bys = params_under_study
+        params_under_study = params_list[iexp]
 
-    t = time.perf_counter()
-    df = get_stacked_df(root, params_under_study, out_root)
-    df = select_best_id(df, bys[0], n=5)
-    #df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
+        bys = params_under_study
 
-    #ndf = normalize_stacked_df(df, bys=[bys[0]])
-    #dfc = remove_bad_id(df)
-    dfc = df.copy()
-    print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
+        t = time.perf_counter()
+        df = get_stacked_df(root, params_under_study, out_root)
+        df = select_best_id(df, bys[0], n=5)
+        #df = df.query(" LR == '1e-05' and `Obs gravity`== 'False' and `Obs jumpforce`== 'False' ")
 
-
-    t = time.perf_counter()
-    avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
-    print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
-
-    t = time.perf_counter()
-    running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
-    print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
-
-    t = time.perf_counter()
-    mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-    print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
-
-    t = time.perf_counter()
-    n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-    print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
-
-    t = time.perf_counter()
-    dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
-    print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
-
-    # # t = time.perf_counter()
-    # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
-    # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
-    # #print(f"Plot 6 done in {time.perf_counter() - t:.2f} seconds.")
-
-    t = time.perf_counter()
-    lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
-    #lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
-    print(f"Plot 7 done in {time.perf_counter() - t:.2f} seconds.")
+        #ndf = normalize_stacked_df(df, bys=[bys[0]])
+        #dfc = remove_bad_id(df)
+        dfc = df.copy()
+        print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
 
 
-    rename_results(out_root, prefix)
+        t = time.perf_counter()
+        avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=None )
+        print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=None)
+        print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+        print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+        print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=None)
+        print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
+        #lvi(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
+        print(f"Plot 7 done in {time.perf_counter() - t:.2f} seconds.")
+
+        # # t = time.perf_counter()
+        # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='cumsum')
+        # # lvi_prepross(dfc,bys=bys,out_root=out_root,plot_args={}, name=None, var='running_mean')
+        # #print(f"Plot 6 done in {time.perf_counter() - t:.2f} seconds.")
+
+        rename_results(out_root, prefix)

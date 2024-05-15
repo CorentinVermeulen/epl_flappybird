@@ -1,7 +1,6 @@
 import os
 
 
-root = '../../exps/old/exp_1_o'
 replacements = [('pipes_are_random', "Random_pipes"),
                 ('PLAYER_FLAP_ACC_VARIANCE', "Jump_Force_k"),
                 ('GRAVITY_VARIANCE', "Gravity_k")
@@ -20,3 +19,8 @@ def replace_in_file(root, replacements):
                 with open(para_path, 'w') as f:
                     f.write(content)
 
+
+for i in range(4):
+    root = f'../../exps/exp_{i}_f'
+    replace_in_file(root, replacements)
+    print(root, "done")
