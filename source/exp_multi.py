@@ -44,7 +44,7 @@ for i in range(len(param)):
         agent.update_env(game_context)
 
         sed = random.randrange(0,1000)
-        scores, durations = agent.train(show_progress=True, name=f'jf{param}_{i+1}_{rep+1}_{sed}')
+        scores, durations = agent.train(show_progress=False, name=f'jf{param}_{i+1}_{rep+1}_{sed}')
         HD = np.max(durations)
         MD = np.mean(durations)
         MD_last = np.mean(durations[-250:])
