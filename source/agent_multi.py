@@ -151,7 +151,6 @@ class AgentSimple():
                 loss = self._optimize_model()
                 if loss:
                     episode_loss += loss.item()
-
                 if done:
                     #train_score = self.env._game.score
                     #scores.append(train_score)
@@ -303,6 +302,7 @@ class AgentSimple():
         with open(self.training_path + "/param_log.txt", 'w') as f:
             for k, v in end_dic.items():
                 f.write(f"{k}: {v}\n")
+
 
     def set_training_id(self, name=None):
         id = datetime.datetime.now().strftime("%d%m_%H%M%S")

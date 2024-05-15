@@ -28,7 +28,7 @@ game_context = {'PLAYER_ACC_Y': 1,
 ## LEARNING PARAMETERS
 root = '../../exps/multi/'
 iters = 5
-param = [2, 4 , 6 , 8] #0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3]
+param = [2, 4 , 8 , 16] #0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3]
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(param)*iters} experiments at {root}")
