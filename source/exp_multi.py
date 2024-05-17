@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_multi import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleMulti as FlappyBirdEnv
 import random
-baseline_HP = {"EPOCHS": 1000,
+baseline_HP = {"EPOCHS": 1500,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
@@ -26,9 +26,9 @@ game_context = {'PLAYER_ACC_Y': 1,
                 'pipes_are_random': True, }
 
 ## LEARNING PARAMETERS
-root = '../../exps/multi/'
+root = '../../exps/multi_extended/'
 iters = 15
-param = [2, 4 , 8] #0, 0.5, 1.0, 1.5, 1.75, 2, 2.25, 3]
+param = [8]
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(param)*iters} experiments at {root}")
