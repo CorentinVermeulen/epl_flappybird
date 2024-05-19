@@ -7,7 +7,7 @@ from utils import HParams, make_experiment_plot
 from agent_multi import AgentSimple
 from flappy_bird_gym.envs import FlappyBirdEnvSimpleMulti as FlappyBirdEnv
 import random
-baseline_HP = {"EPOCHS": 1500,
+baseline_HP = {"EPOCHS": 2500,
                "MEMORY_SIZE": 100000,
                "EPS_START": 0.9,
                "EPS_END": 0.001,
@@ -26,9 +26,9 @@ game_context = {'PLAYER_ACC_Y': 1,
                 'pipes_are_random': True, }
 
 ## LEARNING PARAMETERS
-root = '../../exps/multi_extended/'
-iters = 15
-param = [8]
+root = '../../exps/multi_long/'
+iters = 10
+param = [4,8]
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(param)*iters} experiments at {root}")
@@ -44,13 +44,13 @@ for i in range(len(param)):
         agent.update_env(game_context)
 
         sed = random.randrange(0,1000)
-        scores, durations = agent.train(show_progress=False, name=f'jf{param}_{i+1}_{rep+1}_{sed}')
+        scores, durations = agent.train(show_progress=False, name=f'jf{param[i]}_{i+1}_{rep+1}_{sed}')
         HD = np.max(durations)
         MD = np.mean(durations)
         MD_last = np.mean(durations[-250:])
         te = time.perf_counter() - t
         print(
-            f"{i+1}_{rep+1}_{sed}\n"
+            f"Param_{param[i]}_{rep+1}_{sed}\n"
             f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
             f"- Time {int(te // 60):02}:{int(te % 60):02}"
         )
