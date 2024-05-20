@@ -11,4 +11,4 @@
 module load CUDA
 
 # Exécution script Python
-!python exp_multi.py
+python exp_multi.py
