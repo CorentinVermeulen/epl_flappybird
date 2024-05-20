@@ -6,7 +6,6 @@
 #SBATCH --time=05-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH -J exp_multi
 
 # Chargement des modules
 module load CUDA
