@@ -84,7 +84,7 @@ def get_stacked_df(root, params_under_study, out_root):
                 if 'durations' in data.columns:
                     df['duration'] = data['durations']
                     df['cumsum'] = np.cumsum(data['durations']) / np.arange(1, len(data['durations']) + 1)
-                    df['running_mean'] = data['durations'].rolling(window=100).mean()
+                    df['running_mean'] = data['durations'].rolling(window=50).mean()
                     df['loss'] = data['loss']
                     df['id'] = dir_name
                     df['t'] = data.index
@@ -282,7 +282,7 @@ def dsp_plot(idf, bys, out_root, plot_args={}, name=None, normalized_max=False):
 
     plot_df = pd.DataFrame(columns=['id', 'X', 'DSP'] + bys)
 
-    for X in np.arange(0.1, 1.1, 0.1):
+    for X in np.arange(0.1, 1.05, 0.05):
         df['DSP'] = df['duration'] >= df['maxs'] * X
         # get index of first time the threshold is reached
         over = df.groupby(['id'] + bys)['DSP'].idxmax()
@@ -400,37 +400,48 @@ def lvi(idf, bys, out_root, plot_args={}, name=None, var='cumsum', normalized_ma
         out_name = f'{out_name}_{name}'
     plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
 
-def lvi2(idf, bys, out_root, plot_args={}, var='cumsum', normalized_max=False, name=None):
+def lvi2(idf, bys, out_root, plot_args={}, var='running_mean', name=None):
     df = idf.copy()
 
     # Normalize cumsum on avg value for group_by
-    if normalized_max:
-        mean_by = df.groupby(bys)[var].mean()
-        df[var] = df[bys + [var]].apply(lambda x: x[1] / mean_by[x[0]], axis=1)
-    else:
-        # Normalize cumsum on max value for all
-        df[var] = df[var] / df['duration'].max()
+    mean_by = df.groupby(bys)[var].mean()
+    df['mean_by_inf'] = df[bys + [var]].apply(lambda x: mean_by[x[0]], axis=1)
+    df['cumsum_normalized_by_mean'] = df[var] / df['mean_by_inf']
+
+    max_by = df.groupby(bys)[var].max()
+    df['max_by_inf'] = df[bys + [var]].apply(lambda x: max_by[x[0]], axis=1)
+    df['cumsum_normalized_by_max'] = df[var] / df['max_by_inf']
+
     # New df
     plot_df = pd.DataFrame(columns=['id', 'X', 'LVI'] + bys)
-    for X in np.arange(0.1, 1.1, 0.1):
-        df['LVI'] = df[var] >= X
-        over = df.groupby(['id'] + bys)['LVI'].idxmax()
+    for X in np.arange(0.1, 0.95, 0.05):
+        df['LVI_mean'] = df['cumsum_normalized_by_mean'] >= X
+        df['LVI_max'] = df['cumsum_normalized_by_max'] >= X
+
+        over = df.groupby(['id'] + bys)[['LVI_mean', 'LVI_max']].idxmax()
         over = over.reset_index()
         over['X'] = X
+        if X>0.2:
+            over = over[over['LVI_mean'] != 0]
+            over = over[over['LVI_max'] != 0]
+
         plot_df = pd.concat([plot_df, over])
 
+    xlabel_mean = "Proportion of normalized maximum duration"
+    xlabel_max = "Proportion of maximum duration"
+
     order = np.sort(plot_df[bys[0]].unique())
+    # Normalized by mean
     plt.figure(figsize=large_size)
     sns.lineplot(data=plot_df,
                  x='X',
-                 y='LVI',
+                 y='LVI_mean',
                  hue=bys[0],
                  hue_order=order,
                  **plot_args)
-    xlabel = "Proportion of maximum duration"
-    if normalized_max:
-        xlabel = "Proportion of normalized maximum duration"
-    plt.xlabel(xlabel)
+
+
+    plt.xlabel(xlabel_mean)
     plt.ylabel("Number of games")
     plt.ylim(0, 1000)
     plt.suptitle("")
@@ -438,19 +449,170 @@ def lvi2(idf, bys, out_root, plot_args={}, var='cumsum', normalized_max=False, n
     out_name = 'lvi_plot_' + var
     if name:
         out_name = f'{out_name}_{name}'
-    if normalized_max:
-        out_name = f'{out_name}_normalized'
+    out_name = f'{out_name}_normalized'
     plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
     # plt.show()
+
+    # Normalized by mean
+    plt.figure(figsize=large_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='LVI_max',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+
+    plt.xlabel(xlabel_max)
+    plt.ylabel("Number of games")
+    plt.ylim(0, 1000)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'lvi_plot_' + var
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
+
+
+def _make_dsp_lvi_df(idf, var='running_mean'):
+    df = idf.copy()
+
+    # LVI: Normalize cumsum on avg value for group_by
+    mean_by = df.groupby(bys)[var].mean()
+    df['mean_by_inf'] = df[bys + [var]].apply(lambda x: mean_by[x[0]], axis=1)
+    df['cumsum_normalized_by_mean'] = df[var] / df['mean_by_inf']
+
+    # LVI: Normalize cumsum on max value for group_by
+    max_by = df.groupby(bys)[var].max()
+    df['max_by_inf'] = df[bys + [var]].apply(lambda x: max_by[x[0]], axis=1)
+    df['cumsum_normalized_by_max'] = df[var] / df['max_by_inf']
+
+    # DSP:
+    df['maxs'] = df['duration'].max()
+
+    # df with all res for plotting
+    plot_df = pd.DataFrame(columns=['id', 'X', 'LVI_mean', 'LVI_max', 'DSP'] + bys)
+    for X in np.arange(0.1, 0.95, 0.05):
+        df['LVI_mean'] = df['cumsum_normalized_by_mean'] >= X
+        df['LVI_max'] = df['cumsum_normalized_by_max'] >= X
+
+        over_lvi = df.groupby(['id'] + bys)[['LVI_mean', 'LVI_max']].idxmax()
+        # if X > 0.2:
+        #     over_lvi = over_lvi[over_lvi['LVI_mean'] != 0]
+        #     over_lvi = over_lvi[over_lvi['LVI_max'] != 0]
+
+        # get val where running mean surpass X threshold
+        df_copy = df.copy()
+        df_copy['count_for_dsp'] = df_copy['running_mean'] > X * df_copy['maxs']
+        df_copy['DSP'] = df['duration'] >= df['maxs'] * X
+
+        over_dsp = df_copy.groupby(['id'] + bys)['count_for_dsp'].idxmax().reset_index()
+        for i, row in over_dsp.iterrows():
+            df_copy = df_copy[~((df_copy['id'] == row['id']) & (df_copy['t'] < row['count_for_dsp']))]
+
+        n_over = df_copy.groupby(['id'] + bys)['DSP'].sum() / df_copy.groupby(['id'] + bys)['DSP'].count()
+
+        over_merged = over_lvi.merge(n_over, on=['id']+ bys, how='left')
+        over_merged['X'] = X
+        over_merged = over_merged.reset_index()
+        plot_df = pd.concat([plot_df, over_merged])
+    return plot_df
+
+def lvi22(plot_df,out_root,bys, plot_args={}, name=None):
+    xlabel_mean = "Proportion of normalized maximum duration"
+    xlabel_max = "Proportion of maximum duration"
+    var = ""
+    order = np.sort(plot_df[bys[0]].unique())
+    # Normalized by mean
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='LVI_mean',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+
+    plt.xlabel(xlabel_mean)
+    plt.ylabel("Number of games")
+    plt.ylim(0, 1000)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'lvi_plot_' + var
+    if name:
+        out_name = f'{out_name}_{name}'
+    out_name = f'{out_name}_normalized'
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
+    # plt.show()
+
+    # Normalized by mean
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='LVI_max',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+
+    plt.xlabel(xlabel_max)
+    plt.ylabel("Number of games")
+    plt.ylim(0, 1000)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'lvi_plot_' + var
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
+
+def dsp22(plot_df,out_root,bys, plot_args={}, name=None):
+    order = np.sort(plot_df[bys[0]].unique())
+    plt.figure(figsize=large_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='DSP',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    xlabel = "Proportion of maximum duration"
+
+    plt.xlabel(xlabel)
+    plt.ylabel('DSP')
+    plt.ylim(0, 1)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'dsp_plot'
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
+    # plt.show()
+
+    plt.figure(figsize=small_size)
+    sns.lineplot(data=plot_df,
+                 x='X',
+                 y='DSP',
+                 hue=bys[0],
+                 hue_order=order,
+                 **plot_args)
+    xlabel = "Proportion of maximum duration"
+
+    plt.xlabel(xlabel)
+    plt.ylabel('DSP')
+    plt.ylim(0, 1)
+    plt.suptitle("")
+    plt.title('')
+    out_name = 'dsp_plot'
+    if name:
+        out_name = f'{out_name}_{name}'
+    plt.savefig(f'{out_root}/{out_name}_small.pdf', format='pdf', bbox_inches='tight')
+
+
 
 # ============================================================================= #
 if __name__ == '__main__':
     iexps = [2]
     for iexp  in iexps:
-        #root = f'../../exps/exp_{iexp}_f/'
-        root = f'../../exps/multi/'
-        #prefix = f'EXP{iexp}'
-        prefix = f'MULTI'
+        root = f'../../exps/exp_{iexp}_f/'
+        prefix = f'EXP{iexp}'
+        # root = f'../../exps/multi_extended/'
+        # prefix = f'MULTI_EXP'
         out_root = make_out_root(root)
 
         params_list = [
@@ -460,8 +622,8 @@ if __name__ == '__main__':
             ["Gravity_k"]
                 ]
 
-        #params_under_study = params_list[iexp]
-        params_under_study = ['n_actions']
+        params_under_study = params_list[iexp]
+        #params_under_study = ['n_actions']
         bys = params_under_study
 
         t = time.perf_counter()
@@ -479,29 +641,31 @@ if __name__ == '__main__':
 
         t = time.perf_counter()
         avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=name )
-        print(f"Plot 1 done in {time.perf_counter() - t:.2f} seconds.")
+        print(f"Plot avg done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
         running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=name)
-        print(f"Plot 2 done in {time.perf_counter() - t:.2f} seconds.")
+        print(f"Plot runnning_mean done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
         mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
-        print(f"Plot 3 done in {time.perf_counter() - t:.2f} seconds.")
+        print(f"Plot mean_dur done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
         n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
-        print(f"Plot 4 done in {time.perf_counter() - t:.2f} seconds.")
+        print(f"Plot n_max done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
-        dsp_plot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
-        print(f"Plot 5 done in {time.perf_counter() - t:.2f} seconds.")
-
+        plot_df = _make_dsp_lvi_df(dfc)
+        print(f"plot_df done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
-        lvi2(dfc, bys=bys, out_root=out_root, plot_args={}, normalized_max=False, name=name)
-        lvi2(dfc, bys=bys, out_root=out_root, plot_args={}, normalized_max=True, name=name)
-        print(f"Plot 6-7 done in {time.perf_counter() - t:.2f} seconds.")
+        lvi22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
+        print(f"Plot lvidone in {time.perf_counter() - t:.2f} seconds.")
+
+        t = time.perf_counter()
+        dsp22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
+        print(f"Plot dsp done in {time.perf_counter() - t:.2f} seconds.")
 
 
         rename_results(out_root, prefix)
