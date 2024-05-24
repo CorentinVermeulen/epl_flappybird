@@ -26,9 +26,9 @@ game_context = {'PLAYER_ACC_Y': 1,
                 'pipes_are_random': True, }
 
 ## LEARNING PARAMETERS
-root = '../../exps/multi_long/'
+root = '../../exps/multi_316/'
 iters = 10
-param = [4,8]
+param = [16,3]
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(param)*iters} experiments at {root}")
