@@ -47,7 +47,7 @@ def rename_results(out_root, prefix):
                 new_name = f'{prefix}_{file}'
                 os.rename(f'{out_root}/{file}', f'{out_root}/{new_name}')
 
-def get_stacked_df(root, params_under_study, out_root):
+def get_stacked_df(root, params_under_study, out_root, fill_to=None):
     def extract_params(root, params_list):
         params = {}
         for dir_name in os.listdir(root):
@@ -67,29 +67,41 @@ def get_stacked_df(root, params_under_study, out_root):
 
     params = extract_params(root, params_under_study)
 
-    out_df = pd.DataFrame(columns=["id", "t"] + params_under_study + ["loss", "duration"])
+    out_df = pd.DataFrame(columns=["id", "t"] + params_under_study + ["loss", "duration", "linetype"])
     for dir_name, param in params.items():
         dir_path = os.path.join(root, dir_name)
         for file in os.listdir(dir_path):
             if file.endswith('.csv'):
-                df = pd.DataFrame(columns=["id", "t"] + params_under_study + ["loss", "duration"])
+                df = pd.DataFrame(columns=["id", "t"] + params_under_study + ["loss", "duration", "linetype"])
                 try:
                     data = pd.read_csv(os.path.join(root, dir_name, file))
-                    if len(data) < 1000:
-                        print(f"File {file} in {dir_name} has less than 1000 rows. ({len(data)})")
+                    if len(data) < fill_to:
+                        print(f"File {file} in {dir_name} has less than {fill_to} rows. ({len(data)})")
 
                 except:
                     print(f"Error reading file {file} in {dir_name}.")
                     continue
                 if 'durations' in data.columns:
-                    df['duration'] = data['durations']
-                    df['cumsum'] = np.cumsum(data['durations']) / np.arange(1, len(data['durations']) + 1)
-                    df['running_mean'] = data['durations'].rolling(window=50).mean()
-                    df['loss'] = data['loss']
+                    if fill_to and len(data) < fill_to:
+                        avg = data.loc[500:, 'durations'].mean()
+                        full_dur = pd.concat([data['durations'], pd.Series([avg] * (fill_to - len(data)))]).reset_index(drop=True)
+                        df['duration'] = full_dur
+                        ts = np.arange(0, len(full_dur))
+                        df['t']= ts
+                        lty = ['data'] * len(data) + ['extrapolation'] * (fill_to - len(data))
+                        df['linetype'] = lty
+
+                    else:
+                        df['duration'] = data['durations']
+                        df['t'] = data.index
+                        df['linetype'] = 'data'
+                    df['cumsum'] = np.cumsum(df['duration']) / np.arange(1, len(df['duration']) + 1)
+                    df['running_mean'] = df['duration'].rolling(window=50).mean()
+                    #df['loss'] = data['loss']
                     df['id'] = dir_name
-                    df['t'] = data.index
+
                     for p in params_under_study:
-                        df[p] = param[p]
+                        df[p] = eval(param[p])
                     out_df = pd.concat([out_df, df])
     # Save to csv
     out_df.to_csv(f'{out_root}/stacked_df.csv', index=False)
@@ -161,15 +173,24 @@ def avg_plot(df, out_root, bys, plot_args={}, name=None):
 
 def running_mean_plot(idf, bys, out_root, plot_args={}, name=None):
     df = idf.copy()
-    df = df.dropna()
+    # removes lines where running_mean is NaN
+    df = df.dropna(subset=['running_mean'])
     order = np.sort(df[bys[0]].unique())
-
+    #df['n_actions'] = df['n_actions'].astype("category")
+    pal = sns.color_palette("hls", len(order))
     plt.figure(figsize=large_size)
-    sns.lineplot(data=df,
+    sns.lineplot(data=df.query('linetype!="data" and n_actions == 2 '),
+                 x='t',
+                 y='running_mean',
+                 linestyle='--',
+                 color=pal[0],
+                 **plot_args)
+    sns.lineplot(data=df.query('linetype=="data"'),
                  x='t',
                  y='running_mean',
                  hue=bys[0],
                  hue_order=order,
+                 palette=pal,
                  **plot_args)
     plt.xlabel('Games played')
     plt.ylabel('Duration')
@@ -179,13 +200,21 @@ def running_mean_plot(idf, bys, out_root, plot_args={}, name=None):
     if name:
         out_name = f'{out_name}_{name}'
     plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
+
     ##plt.show()
     plt.figure(figsize=small_size)
-    sns.lineplot(data=df,
+    sns.lineplot(data=df.query('linetype!="data" and n_actions == 2 '),
+                 x='t',
+                 y='running_mean',
+                 linestyle='--',
+                 color=pal[0],
+                 **plot_args)
+    sns.lineplot(data=df.query('linetype=="data"'),
                  x='t',
                  y='running_mean',
                  hue=bys[0],
                  hue_order=order,
+                 palette=pal,
                  **plot_args)
     plt.xlabel('Games played')
     plt.ylabel('Duration')
@@ -473,9 +502,9 @@ def lvi2(idf, bys, out_root, plot_args={}, var='running_mean', name=None):
     plt.savefig(f'{out_root}/{out_name}.pdf', format='pdf', bbox_inches='tight')
 
 
-def _make_dsp_lvi_df(idf, var='running_mean'):
+def _make_dsp_lvi_df(idf, bys):
     df = idf.copy()
-
+    var = 'running_mean'
     # LVI: Normalize cumsum on avg value for group_by
     mean_by = df.groupby(bys)[var].mean()
     df['mean_by_inf'] = df[bys + [var]].apply(lambda x: mean_by[x[0]], axis=1)
@@ -518,7 +547,7 @@ def _make_dsp_lvi_df(idf, var='running_mean'):
     return plot_df
 
 def lvi22(plot_df,out_root,bys, plot_args={}, name=None):
-    xlabel_mean = "Proportion of normalized maximum duration"
+    xlabel_mean = "Proportion of average duration"
     xlabel_max = "Proportion of maximum duration"
     var = ""
     order = np.sort(plot_df[bys[0]].unique())
@@ -533,10 +562,10 @@ def lvi22(plot_df,out_root,bys, plot_args={}, name=None):
 
     plt.xlabel(xlabel_mean)
     plt.ylabel("Number of games")
-    plt.ylim(0, 1000)
+    plt.ylim(0)
     plt.suptitle("")
     plt.title('')
-    out_name = 'lvi_plot_' + var
+    out_name = 'lvi_plot'
     if name:
         out_name = f'{out_name}_{name}'
     out_name = f'{out_name}_normalized'
@@ -554,7 +583,7 @@ def lvi22(plot_df,out_root,bys, plot_args={}, name=None):
 
     plt.xlabel(xlabel_max)
     plt.ylabel("Number of games")
-    plt.ylim(0, 1000)
+    plt.ylim(0)
     plt.suptitle("")
     plt.title('')
     out_name = 'lvi_plot_' + var
@@ -607,19 +636,18 @@ def dsp22(plot_df,out_root,bys, plot_args={}, name=None):
 
 # ============================================================================= #
 if __name__ == '__main__':
-    iexps = [2]
+    iexps = [4]
     for iexp  in iexps:
-        root = f'../../exps/exp_{iexp}_f/'
+        root = f'../../exps/exp_{iexp}_test/'
         prefix = f'EXP{iexp}'
-        # root = f'../../exps/multi_extended/'
-        # prefix = f'MULTI_EXP'
         out_root = make_out_root(root)
 
         params_list = [
             ["Random_pipes"],
             ["Random_pipes"],
             ["Jump_Force_k"],
-            ["Gravity_k"]
+            ["Gravity_k"],
+            ["n_actions"],
                 ]
 
         params_under_study = params_list[iexp]
@@ -627,7 +655,7 @@ if __name__ == '__main__':
         bys = params_under_study
 
         t = time.perf_counter()
-        df = get_stacked_df(root, params_under_study, out_root)
+        df = get_stacked_df(root, params_under_study, out_root, fill_to=2500)
         df = select_best_id(df, bys[0], n=10)
         name=""
 
@@ -639,33 +667,32 @@ if __name__ == '__main__':
         print(f"Data loaded in {time.perf_counter() - t:.2f} seconds.")
 
 
-        t = time.perf_counter()
-        avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=name )
-        print(f"Plot avg done in {time.perf_counter() - t:.2f} seconds.")
+        # t = time.perf_counter()
+        # avg_plot(dfc, bys=bys, out_root=out_root, plot_args={}, name=name )
+        # print(f"Plot avg done in {time.perf_counter() - t:.2f} seconds.")
 
         t = time.perf_counter()
         running_mean_plot(dfc,bys=bys,out_root=out_root,plot_args={},name=name)
         print(f"Plot runnning_mean done in {time.perf_counter() - t:.2f} seconds.")
 
-        t = time.perf_counter()
-        mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
-        print(f"Plot mean_dur done in {time.perf_counter() - t:.2f} seconds.")
-
-        t = time.perf_counter()
-        n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
-        print(f"Plot n_max done in {time.perf_counter() - t:.2f} seconds.")
-
-        t = time.perf_counter()
-        plot_df = _make_dsp_lvi_df(dfc)
-        print(f"plot_df done in {time.perf_counter() - t:.2f} seconds.")
-
-        t = time.perf_counter()
-        lvi22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
-        print(f"Plot lvidone in {time.perf_counter() - t:.2f} seconds.")
-
-        t = time.perf_counter()
-        dsp22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
-        print(f"Plot dsp done in {time.perf_counter() - t:.2f} seconds.")
-
+        # t = time.perf_counter()
+        # mean_dur_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
+        # print(f"Plot mean_dur done in {time.perf_counter() - t:.2f} seconds.")
+        #
+        # t = time.perf_counter()
+        # n_max_boxplot(dfc,bys=bys,out_root=out_root,plot_args={}, name=name)
+        # print(f"Plot n_max done in {time.perf_counter() - t:.2f} seconds.")
+        #
+        # t = time.perf_counter()
+        # plot_df = _make_dsp_lvi_df(dfc, bys)
+        # print(f"plot_df done in {time.perf_counter() - t:.2f} seconds.")
+        #
+        # t = time.perf_counter()
+        # lvi22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
+        # print(f"Plot lvidone in {time.perf_counter() - t:.2f} seconds.")
+        #
+        # t = time.perf_counter()
+        # dsp22(plot_df, out_root=out_root, bys=bys, plot_args={}, name=name)
+        # print(f"Plot dsp done in {time.perf_counter() - t:.2f} seconds.")
 
         rename_results(out_root, prefix)
