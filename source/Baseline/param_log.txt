@@ -1,0 +1,79 @@
+id: Baseline_LR1e-05_R1_3004_020948
+device: cpu
+env: CustomEnvSimple(
+	Screen_size=(288, 512) (normalized obs: True	Action space: Discrete(2)
+	Observation space: Box(-inf, inf, (9,), float32)
+	Env obs values: 9
+	Reward range: {'alive': 0.1, 'pass_pipe': 1, 'dead': -1, 'score': 0}
+	Obs gravity: False
+	Obs jumpforce: False
+	Game parameters: 
+		PLAYER_FLAP_ACC: -5
+		PLAYER_ACC_Y: 1
+		Random_pipes: False
+)
+n_actions: 2
+n_observations: 9
+hparams: Hyperparameters Config:
+   EPOCHS: 1000
+   MEMORY_SIZE: 100000
+   EPS_START: 0.9
+   EPS_END: 0.001
+   EPS_DECAY: 2000
+   TAU: 0.01
+   LAYER_SIZES: [256, 256, 256, 256]
+   GAMMA: 0.99
+   UPDATE_TARGETNET_RATE: 1
+   BATCH_SIZE: 256
+   LR: 1e-05
+policy_net: DQN(
+  (layers): Sequential(
+    (0): Linear(in_features=9, out_features=256, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=256, out_features=256, bias=True)
+    (3): ReLU()
+    (4): Linear(in_features=256, out_features=256, bias=True)
+    (5): ReLU()
+    (6): Linear(in_features=256, out_features=256, bias=True)
+    (7): ReLU()
+    (8): Linear(in_features=256, out_features=2, bias=True)
+  )
+)
+Layers summary: 9 -> 256 -> 256 -> 256 -> 256 -> 2
+Trainable parameters: 200,450
+target_net: DQN(
+  (layers): Sequential(
+    (0): Linear(in_features=9, out_features=256, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=256, out_features=256, bias=True)
+    (3): ReLU()
+    (4): Linear(in_features=256, out_features=256, bias=True)
+    (5): ReLU()
+    (6): Linear(in_features=256, out_features=256, bias=True)
+    (7): ReLU()
+    (8): Linear(in_features=256, out_features=2, bias=True)
+  )
+)
+Layers summary: 9 -> 256 -> 256 -> 256 -> 256 -> 2
+Trainable parameters: 200,450
+memory: ReplayMemory with capacity 100000 (100000 used elements)
+optimizer: AdamW (
+Parameter Group 0
+    amsgrad: True
+    betas: (0.9, 0.999)
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 1e-05
+    maximize: False
+    weight_decay: 0.01
+)
+step_done: 1201820
+eps_threshold: 0.001
+root_path: ../../exps/exp_0/
+training_path: ../../exps/exp_0/Baseline_LR1e-05_R1_3004_020948/
+training_time: 14077.58
+Jump_Force_k: 0
+Gravity_k: 0

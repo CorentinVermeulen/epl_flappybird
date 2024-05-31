@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import re
-from agent_simple import AgentSimple
-from flappy_bird_gym.envs import FlappyBirdEnvSimpleFast as FlappyBirdEnv
+from agent_multi import AgentSimple
+from flappy_bird_gym.envs import FlappyBirdEnvSimpleMulti as FlappyBirdEnv
 from utils import HParams
 from tqdm import tqdm
 import seaborn as sns
@@ -41,6 +41,16 @@ baseline_HP = {"EPOCHS": 1000,
                "LR": 1e-4,
                }
 
+"""
+I want to test performances of both agent in randomcondition => just testing
+
+For every saved agent, 
+    - get the random pipes value
+    - load agent
+    - run the agent on 100 games and save all durations
+    - save the results in a df
+    - plot the results
+"""
 def make_out_root(root):
     if root[-1] != '/':
         root += '/'
@@ -85,22 +95,32 @@ def init_df(root, var_type='pipes_are_random'):
                            'var': var,
                            'duration': train_dur,
                            'n_max': n_max,
-                           'duration_type': 'train'}
+                           'duration_type': 'Train'}
                     df.loc[len(df)] = row
     df = df.sort_values(by='id')
     df.reset_index(drop=True, inplace=True)
     return df
 
-def test_df(df, n=50):
+def select_best_id(df, var, n=5):
+    il = len(df)
+    # For every var, I will only keep the best n ids
+    best_ids = df[['id', var, 'duration']].groupby(['id', var]).mean().reset_index()
+    best_ids = best_ids.sort_values(by='duration', ascending=False).groupby(var).head(n)
+    best_df = df[df['id'].isin(best_ids['id'])]
+    ol = len(best_df)
+    print(f"Reduced from {il} to {ol} rows.")
+    return best_df
+
+def test_df(df, n=5):
     dfi = df.copy()
-    ## First test: random environment
+    ## First test: fixed environment
     for i, row in tqdm(df.iterrows()):
         game_context = {'PLAYER_FLAP_ACC': -5,
                         'PLAYER_ACC_Y': 1,
                         'pipes_are_random':True,
                         }
 
-        env = FlappyBirdEnv()
+        env = FlappyBirdEnv(n_actions=eval(row['var']))
         env.obs_jumpforce = False
         env.obs_gravity = False
 
@@ -115,38 +135,46 @@ def test_df(df, n=50):
                    'duration': dur,
                    'duration_type': 'test',
                    }
-            dfi.loc[len(dfi)] = row
+            dfi = pd.concat([dfi, pd.DataFrame(row, index=[0])])
+
+
 
     dfi.to_csv(f"{out_root}/out.csv", index=False)
     return dfi
 
-def make_plots(dfi, xlabel="Jump Force Variance"):
+def make_plots(dfi, xlabel="Number of possible actions"):
     df = dfi.reset_index()
-    plt.figure(figsize=square_size)
-    order = np.sort(df['var'].unique())
-    sns.boxplot(
-        data=df.query('duration_type == "test"'),
-        x='var',
-        y='duration',
-        order = order,
-        hue='duration_type',
-        fill=False,
-        flierprops={"marker": "x"},
-        medianprops={"color": "r", "linewidth": 2},
-        showcaps=False,
-        showmeans=True,
-    )
-    sns.stripplot(data=df.query('duration_type == "test"'),
-        x='var',
-        y='duration',
-        order = order,
-        color='black',
-        dodge=True,
-        alpha=0.5)
-    plt.title('Test duration in random environments')
-    plt.xlabel(xlabel)
-    plt.ylabel('Duration')
-    plt.savefig(f"{out_root}/EXP1TEST_boxplot_dur.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
+    durations_types = df['duration_type'].unique()
+    for dur in durations_types:
+
+        plt.figure(figsize=square_size)
+        uniq = df['var'].unique()
+
+        order = np.sort(uniq)
+        sns.boxplot(
+            data=df.query('duration_type == @dur'),
+            x='var',
+            y='duration',
+            order = order,
+            hue='duration_type',
+            fill=False,
+            flierprops={"marker": "x"},
+            medianprops={"color": "r", "linewidth": 2},
+            showcaps=False,
+            showmeans=True,
+        )
+        sns.stripplot(data=df.query('duration_type == @dur'),
+            x='var',
+            y='duration',
+            order = order,
+            color='black',
+            dodge=True,
+            alpha=0.5,
+            size=2)
+        #plt.title(f'Test duration in {dur} condition')
+        plt.xlabel(xlabel)
+        plt.ylabel('Duration')
+        plt.savefig(f"{out_root}/EXP4TEST_boxplot_{dur}.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
 
 
     # plt.figure(figsize=(10, 5))
@@ -160,65 +188,72 @@ def make_plots(dfi, xlabel="Jump Force Variance"):
     # plt.savefig(f"{out_root}/EXP1TEST_displot_dur.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
 
 
-root = f'../../exps/exp_1_f/'
+root = f'../../exps/exp_4_test/'
 out_root = make_out_root(root)
 
+var_value = 'n_actions'
 
-df = init_df(root, 'Random_pipes')
-#dft = test_df(df, 100)
+df = init_df(root, var_value)
+df = select_best_id(df, 'var', n=10)
+
+dft = test_df(df, 100)
 dft = pd.read_csv(f"{out_root}/out.csv")
-
 dft_mean = dft[['id', 'duration_type', 'var', 'duration']].groupby(['id', 'duration_type', 'var']).mean()
-make_plots(dft_mean, xlabel='Random_pipes')
+make_plots(dft_mean, xlabel=var_value)
 
+""" 
+I want to Select best agent from both configuration
+best = Highest number of mean configuration
+best2 = Highest mean duration
+"""
 
 # print(df[['id', 'duration', 'n_max', 'var']].sort_values(by='duration', ascending=False).groupby('var').head(3))
 # print('\n---\n')
 # print(df[['id', 'duration', 'n_max', 'var']].sort_values(by='n_max', ascending=False).groupby('var').head(3))
 
-best_random = 'PARTrue_LR1e-05_R1_0305_123309'
-best_fixed = 'Baseline_LR1e-05_R2_3004_224251'
-
-# Plot both agent
-
-def load_id(root:str, id:str):
-    dir = os.path.join(root, id)
-    for file in os.listdir(dir):
-        if file.startswith('results'):
-            data = pd.read_csv(os.path.join(dir, file))
-            data.columns = ['t', 'durations', 'loss']
-            data["cumsum"] = np.cumsum(data['durations']) / np.arange(1, len(data['durations']) + 1)
-            return data
-
-    return None
-
-agent_rd = load_id(root, best_random)
-agent_fx = load_id(root, best_fixed)
-
-agent_rd_test = dft.query(f"id == '{best_random}'")
-agent_fx_test = dft.query(f"id == '{best_fixed}'")
-agents_test = pd.concat([agent_rd_test, agent_fx_test])
-
-plt.figure(figsize=small_size)
-sns.lineplot(x=agent_fx['t'], y=agent_fx['cumsum'], label='Fixed pipes')
-sns.lineplot(x=agent_rd['t'],y=agent_rd['cumsum'], label='Random pipes')
-plt.ylabel("Duration")
-plt.xlabel("Games played")
-plt.savefig(f"{out_root}/EXP1TEST_avg_best.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
-
-plt.figure(figsize=square_size)
-g=sns.boxplot(
-        data=agents_test.query('duration_type == "test"'),
-        x='var',
-        y='duration',
-        order = ['False', 'True'],
-        fill=False,
-        flierprops={"marker": "x"},
-        medianprops={"color": "r", "linewidth": 2},
-        showcaps=False,
-        showmeans=True,
-    )
-plt.xlabel=('Configuration')
-g.set_xticklabels([f'Fixed pipes ({agents_test.query("var == False")["duration"].mean():.2f})',
-                     f'Random pipes ({agents_test.query("var == True")["duration"].mean():.2f})'])
-plt.savefig(f"{out_root}/EXP1TEST_boxplot_best.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
+# best_random = 'PARTrue_LR1e-05_R1_0305_123309'
+# best_fixed = 'Baseline_LR1e-05_R2_3004_224251'
+#
+# # Plot both agent
+#
+# def load_id(root:str, id:str):
+#     dir = os.path.join(root, id)
+#     for file in os.listdir(dir):
+#         if file.startswith('results'):
+#             data = pd.read_csv(os.path.join(dir, file))
+#             data.columns = ['t', 'durations', 'loss']
+#             data["cumsum"] = np.cumsum(data['durations']) / np.arange(1, len(data['durations']) + 1)
+#             return data
+#
+#     return None
+#
+# agent_rd = load_id(root, best_random)
+# agent_fx = load_id(root, best_fixed)
+#
+# agent_rd_test = dft.query(f"id == '{best_random}'")
+# agent_fx_test = dft.query(f"id == '{best_fixed}'")
+# agents_test = pd.concat([agent_rd_test, agent_fx_test])
+#
+# plt.figure(figsize=small_size)
+# sns.lineplot(x=agent_fx['t'], y=agent_fx['cumsum'], label='Fixed pipes')
+# sns.lineplot(x=agent_rd['t'],y=agent_rd['cumsum'], label='Random pipes')
+# plt.ylabel("Duration")
+# plt.xlabel("Games played")
+# plt.savefig(f"{out_root}/EXP1TEST_avg_best.pdf", format = 'pdf', dpi=300, bbox_inches='tight')
+#
+# plt.figure(figsize=square_size)
+# g=sns.boxplot(
+#         data=agents_test.query('duration_type == "test"'),
+#         x='var',
+#         y='duration',
+#         order = ['False', 'True'],
+#         fill=False,
+#         flierprops={"marker": "x"},
+#         medianprops={"color": "r", "linewidth": 2},
+#         showcaps=False,
+#         showmeans=True,
+#     )
+# plt.xlabel=('Configuration')
+# g.set_xticklabels([f'Fixed pipes ({agents_test.query("var == False")["duration"].mean():.2f})',
+#                      f'Random pipes ({agents_test.query("var == True")["duration"].mean():.2f})'])
+# plt.savefig(f"{out_root}/EXP1TEST_boxplot_best.pdf", format = 'pdf', dpi=300, bbox_inches='tight')

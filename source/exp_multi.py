@@ -26,9 +26,9 @@ game_context = {'PLAYER_ACC_Y': 1,
                 'pipes_are_random': True, }
 
 ## LEARNING PARAMETERS
-root = '../../exps/multi_316/'
-iters = 10
-param = [16,3]
+root = '../../exps/multi/'
+iters = 15
+param = [2,3,4,8,16]
 
 print(f"Python script root: {os.getcwd()}")
 print(f"Starting {len(param)*iters} experiments at {root}")
@@ -54,3 +54,4 @@ for i in range(len(param)):
             f"\tD* {HD:<4.0f} - E[D] {MD:<5.0f} - E[D]_250 {MD_last:<5.0f} "
             f"- Time {int(te // 60):02}:{int(te % 60):02}"
         )
+print("end exp_multi.py")

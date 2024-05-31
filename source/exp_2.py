@@ -22,20 +22,21 @@ baseline_HP = {"EPOCHS": 1000,
 
 """
 EXPERIENCE 2: Jump Force impact
+    - Vary 'PLAYER_FLAP_ACC' which correspond to jump force
 """
 
 ## ENVIRONMENT CONTEXT
 game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': True}
 
 ## LEARNING PARAMETERS
-root = '../../exps/exp_2_335/'
+root = '../../exps/exp_2/'
 
-iters = 10
-params = [3, 3.5]  #[0.5, 1.0, 1.5, 2, 2.5]  # Jump Force
+iters = 15
+params = [0.5, 1.0, 1.5, 2, 2.5]  # Jump Force values
 p_name = 'PLAYER_FLAP_ACC_VARIANCE'
 p_short = 'JF'
-lrs = [1e-5]  # [1e-4, 1e-5]
-obss = [False]  #[False, True]
+lrs = [1e-5]
+obss = [False]
 
 n = iters * len(params) * len(lrs) * len(obss)
 print(f"Python script root: {os.getcwd()}")

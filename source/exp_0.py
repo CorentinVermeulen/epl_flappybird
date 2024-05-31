@@ -21,7 +21,9 @@ baseline_HP = {"EPOCHS": 1000,
                }
 
 """
-EXPERIENCE 0: Baseline
+EXPERIENCE 0: Establish Baseline performances
+    - No randomisation
+    - Constant parameters
 """
 
 ## ENVIRONMENT CONTEXT
@@ -32,7 +34,7 @@ game_context = {'PLAYER_FLAP_ACC': -5,
 ## LEARNING PARAMETERS
 root = '../../exps/exp_0/'
 
-iters = 5
+iters = 15
 
 lrs = [1e-05]
 n = iters * len(lrs)

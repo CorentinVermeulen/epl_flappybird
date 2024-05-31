@@ -22,6 +22,7 @@ baseline_HP = {"EPOCHS": 1000,
 
 """
 EXPERIENCE 1: Random vertical position of pipes
+    - Make the 'pipes_are_random' parameter vary between True and False
 """
 
 ## ENVIRONMENT CONTEXT
@@ -30,8 +31,8 @@ game_context = {'PLAYER_FLAP_ACC': -5, 'PLAYER_ACC_Y': 1, 'pipes_are_random': Tr
 ## LEARNING PARAMETERS
 root = '../../exps/exp_1/'
 
-iters = 3
-params = [True]
+iters = 15
+params = [True, False]
 p_name = 'pipes_are_random'
 p_short = 'PAR'
 lrs = [1e-5]
