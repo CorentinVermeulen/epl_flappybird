@@ -1,8 +1,6 @@
 # EPL FlappyBird
 
-This repository contains the code for a master thesis for UCLouvain. 
-The aim of the project was to train DQN agent to play FlappyBird and add some enviornmenta modifitication to see how the training was impacted.
-Among thoses modifications we can find:
+This repository contains the code for a master thesis at UCLouvain. The aim of the project was to train a DQN agent to play FlappyBird and to explore how various environmental modifications impact the training process. Among these modifications, we include:
 - Training on fixed or random pipes
 - Training with some randomness in the Jump Force
 - Training with increased action space
